@@ -5,12 +5,9 @@ ini_set('display_errors','1');
 error_reporting(E_ALL);
 
 require_once __DIR__ . '/../includes/init.php';
-
-start_session();
+require_once __DIR__ . '/../includes/mail_helpers.php';
 
 header('Content-Type: text/html; charset=utf-8');
-
-function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
 function request_base_url(): string {
   $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
@@ -66,22 +63,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Password Reset</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Forgot Password – JACK</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-  <h2>Password Reset Request</h2>
+<body class="bg-light">
+  <div class="container py-5">
+    <div class="card shadow-sm mx-auto" style="max-width:520px;">
+      <div class="card-body">
+        <h1 class="h4 mb-1">Forgot your password?</h1>
+        <p class="text-muted small mb-3">Enter your email and we'll send you a reset link.</p>
 
-  <?php if ($msg): ?>
-    <p style="color:green;"><?= h($msg) ?></p>
-  <?php endif; ?>
+        <?php if ($msg): ?>
+          <div class="alert alert-success"><?= h($msg) ?></div>
+        <?php endif; ?>
 
-  <form method="post">
-    <label>Email</label><br>
-    <input name="email" type="email" value="<?= h($email) ?>" required><br><br>
-    <button type="submit">Send reset link</button>
-  </form>
+        <form method="post" autocomplete="on">
+          <label class="form-label">Email address</label>
+          <input class="form-control" name="email" type="email" value="<?= h($email) ?>" required autocomplete="username">
+
+          <div class="d-flex align-items-center mt-3">
+            <button class="btn btn-primary" type="submit">Send reset link</button>
+            <a class="ms-auto small" href="/login.php">&larr; Back to sign in</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

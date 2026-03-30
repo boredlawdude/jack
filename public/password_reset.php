@@ -2,10 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/init.php';
-start_session();
 
 $pdo = pdo();
-function h($v): string { return htmlspecialchars((string)$v); }
 
 $token = (string)($_GET['token'] ?? $_POST['token'] ?? '');
 $errors = [];
@@ -66,39 +64,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 }
 
-// include __DIR__ . '/header.php';
 ?>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Set New Password – JACK</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div class="container py-5">
+    <div class="card shadow-sm mx-auto" style="max-width:520px;">
+      <div class="card-body">
+        <h1 class="h4 mb-1">Set new password</h1>
+        <p class="text-muted small mb-3">Choose a new password for your account.</p>
 
-<h1 class="h4 mb-3">Set New Password</h1>
+        <?php if ($ok): ?>
+          <div class="alert alert-success">
+            Password updated. <a href="/login.php">Sign in</a>.
+          </div>
+        <?php else: ?>
 
-<?php if ($ok): ?>
-  <div class="alert alert-success">
-    Password updated. You can now <a href="/login.php">log in</a>.
-  </div>
-<?php else: ?>
+          <?php if ($errors): ?>
+            <div class="alert alert-danger"><ul class="mb-0">
+              <?php foreach ($errors as $e): ?><li><?= h($e) ?></li><?php endforeach; ?>
+            </ul></div>
+          <?php endif; ?>
 
-  <?php if ($errors): ?>
-    <div class="alert alert-danger"><ul class="mb-0">
-      <?php foreach ($errors as $e): ?><li><?= h($e) ?></li><?php endforeach; ?>
-    </ul></div>
-  <?php endif; ?>
+          <form method="post" autocomplete="off">
+            <input type="hidden" name="token" value="<?= h($token) ?>">
 
-  <div class="card shadow-sm">
-    <div class="card-body">
-      <form method="post">
-        <input type="hidden" name="token" value="<?= h($token) ?>">
+            <label class="form-label">New password</label>
+            <input class="form-control" type="password" name="password" required minlength="8">
 
-        <label class="form-label">New password</label>
-        <input class="form-control" type="password" name="password" required>
+            <label class="form-label mt-3">Confirm new password</label>
+            <input class="form-control" type="password" name="password2" required minlength="8">
 
-        <label class="form-label mt-3">Confirm new password</label>
-        <input class="form-control" type="password" name="password2" required>
+            <div class="d-flex align-items-center mt-3">
+              <button class="btn btn-primary" type="submit">Update password</button>
+              <a class="ms-auto small" href="/login.php">&larr; Back to sign in</a>
+            </div>
+          </form>
 
-        <button class="btn btn-primary mt-3">Update Password</button>
-      </form>
+        <?php endif; ?>
+      </div>
     </div>
   </div>
-
-<?php endif; ?>
-
-<?php include __DIR__ . '/footer.php'; ?>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
