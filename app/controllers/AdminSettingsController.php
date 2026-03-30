@@ -10,7 +10,7 @@ class AdminSettingsController {
         $pdo = db();
         // Load settings
         $settings = [];
-        $stmt = $pdo->query("SELECT setting_key, setting_value, description FROM system_settings WHERE setting_key IN ('storage_base_dir', 'contracts_generated_subdir', 'docx_template_dir', 'html_template_dir', 'default_docx_template', 'default_html_template') ORDER BY setting_key");
+        $stmt = $pdo->query("SELECT setting_key, setting_value, description FROM system_settings WHERE setting_key IN ('storage_base_dir', 'contracts_generated_subdir', 'docx_template_dir', 'html_template_dir', 'default_docx_template', 'default_html_template', 'default_email_message') ORDER BY setting_key");
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $settings[$row['setting_key']] = $row;
         }
@@ -45,10 +45,11 @@ class AdminSettingsController {
                     'html_template_dir',
                     'default_docx_template',
                     'default_html_template',
+                    'default_email_message',
                 ];
                 foreach ($settingsToUpdate as $key) {
                     $value = trim((string)($_POST[$key] ?? ''));
-                    if ($value === '') {
+                    if ($value === '' && $key !== 'default_email_message') {
                         $errors[] = ucfirst(str_replace('_', ' ', $key)) . ' cannot be empty.';
                         continue;
                     }

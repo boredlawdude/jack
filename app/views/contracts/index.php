@@ -10,12 +10,15 @@ if (!function_exists('h')) {
 }
 
 function status_badge(string $status): string {
-    return match ($status) {
+    return match (strtolower($status)) {
         'draft' => 'secondary',
-        'in_review' => 'warning',
-        'signed' => 'success',
-        'expired' => 'danger',
-        'terminated' => 'dark',
+        'negotiate' => 'info',
+        'legal review' => 'warning',
+        'dept head review' => 'primary',
+        'manager review' => 'primary',
+        'town council' => 'info',
+        'out for signature' => 'warning',
+        'executed' => 'success',
         default => 'light',
     };
 }
@@ -46,11 +49,11 @@ function status_badge(string $status): string {
             </div>
 
             <div class="col-md-2">
-                <select class="form-select" name="status">
+                <select class="form-select" name="contract_status_id">
                     <option value="">All Status</option>
-                    <?php foreach (['draft','in_review','signed','expired','terminated'] as $s): ?>
-                        <option value="<?= h($s) ?>" <?= (($_GET['status'] ?? '') === $s) ? 'selected' : '' ?>>
-                            <?= h(ucwords(str_replace('_', ' ', $s))) ?>
+                    <?php foreach (($contractStatuses ?? []) as $status): ?>
+                        <option value="<?= (int)$status['contract_status_id'] ?>" <?= ((string)($_GET['contract_status_id'] ?? '') === (string)$status['contract_status_id']) ? 'selected' : '' ?>>
+                            <?= h($status['contract_status_name']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -107,7 +110,6 @@ function status_badge(string $status): string {
                 <table class="table table-striped table-hover mb-0 align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>ID</th>
                             <th>Contract #</th>
                             <th>Name</th>
                             <th>Status</th>
@@ -122,8 +124,6 @@ function status_badge(string $status): string {
                     <tbody>
                     <?php foreach ($contracts as $c): ?>
                         <tr>
-                            <td><?= (int)$c['contract_id'] ?></td>
-
                             <td><?= h($c['contract_number'] ?? '') ?></td>
 
                             <td class="fw-semibold">
@@ -131,8 +131,8 @@ function status_badge(string $status): string {
                             </td>
 
                             <td>
-                                <span class="badge text-bg-<?= status_badge($c['status'] ?? '') ?>">
-                                    <?= h(ucwords(str_replace('_', ' ', $c['status'] ?? ''))) ?>
+                                <span class="badge text-bg-<?= status_badge($c['status_name'] ?? '') ?>">
+                                    <?= h($c['status_name'] ?? '') ?>
                                 </span>
                             </td>
 

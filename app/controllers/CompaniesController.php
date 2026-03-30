@@ -132,38 +132,47 @@ class CompaniesController
     public function edit(int $companyId): void
     {
         if ($companyId <= 0) {
-            http_response_code(400);
             echo 'Missing company id';
             return;
         }
-
         $stmt = $this->db->prepare("SELECT * FROM companies WHERE company_id = ? LIMIT 1");
         $stmt->execute([$companyId]);
         $company = $stmt->fetch(PDO::FETCH_ASSOC);
-
         if (!$company) {
-            http_response_code(404);
             echo 'Company not found';
             return;
         }
-
         $mode = 'edit';
-        $errors = $_SESSION['flash_errors'] ?? [];
-        unset($_SESSION['flash_errors']);
-
         $old = $_SESSION['old_company_form'] ?? null;
         unset($_SESSION['old_company_form']);
-
-        if (is_array($old) && $old) {
+        if ($old) {
             $company = array_merge($company, $old);
         }
-
         $companyTypes = $this->getCompanyTypes();
-        $linkPeople = $this->getAllActivePeople();
         $employees = $this->getCompanyPeople($companyId);
+        $linkPeople = [];
         $townEmployees = $this->getTownEmployees();
-
+        // Load company comments
+        $comments = $this->getCompanyComments($companyId);
         require APP_ROOT . '/app/views/companies/edit.php';
+    }
+
+    private function getCompanyComments(int $companyId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT
+                cc.company_comment_id,
+                cc.comment_text,
+                cc.created_at,
+                p.person_id,
+                COALESCE(NULLIF(p.full_name,''), CONCAT_WS(' ', p.first_name, p.last_name)) AS author_name
+            FROM company_comments cc
+            JOIN people p ON p.person_id = cc.person_id
+            WHERE cc.company_id = ?
+            ORDER BY cc.created_at DESC, cc.company_comment_id DESC
+        ");
+        $stmt->execute([$companyId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function update(int $companyId): void

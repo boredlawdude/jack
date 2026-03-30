@@ -26,6 +26,7 @@
                 <input type="hidden" name="csrf_token" value="<?= h($_SESSION['csrf_token']) ?>">
                 <div class="row g-4">
                     <?php foreach ($settings as $key => $row): ?>
+                        <?php if ($key === 'default_email_message') continue; ?>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">
                                 <?= h(ucwords(str_replace('_', ' ', $key))) ?>
@@ -41,6 +42,15 @@
                         </div>
                     <?php endforeach; ?>
                 </div>
+                <?php if (isset($settings['default_email_message'])): ?>
+                <div class="mt-4">
+                    <label class="form-label fw-bold">Default Email Message</label>
+                    <div class="form-text text-muted mb-2"><?= h($settings['default_email_message']['description'] ?? '') ?></div>
+                    <textarea class="form-control" name="default_email_message" rows="6"><?= h($settings['default_email_message']['setting_value'] ?? '') ?></textarea>
+                    <div class="form-text">Use <code>{contract_number}</code>, <code>{contract_name}</code>, <code>{sender_name}</code> as placeholders.</div>
+                </div>
+                <?php endif; ?>
+
                 <div class="mt-5">
                     <button type="submit" class="btn btn-primary btn-lg px-5">
                         Save Changes
@@ -53,6 +63,11 @@
     <div class="alert alert-info mt-4 small">
         <strong>Note:</strong> Changes take effect immediately for new generations/downloads.<br>
         Existing files are not moved — update paths carefully.
+    </div>
+
+    <div class="mt-5 d-flex gap-2">
+        <a href="/index.php?page=admin_statuses" class="btn btn-outline-primary">Manage Contract Statuses</a>
+        <a href="/index.php?page=admin_payment_terms" class="btn btn-outline-primary">Manage Payment Terms</a>
     </div>
 </div>
 <?php include APP_ROOT . '/app/views/layouts/footer.php'; ?>

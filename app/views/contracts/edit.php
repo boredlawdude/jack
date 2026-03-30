@@ -23,8 +23,15 @@ if (!function_exists('h')) {
 </div>
 
 <form method="post" action="<?= h($action) ?>" class="card shadow-sm">
+
     <div class="card-body">
         <div class="row g-3">
+
+            <div class="col-md-6">
+                <label class="form-label" for="contract_name">Contract Name</label>
+                <input class="form-control" type="text" id="contract_name" name="name" required
+                       value="<?= h($contract['name'] ?? '') ?>">
+            </div>
 
             <div class="col-md-4">
                 <label class="form-label" for="contract_number">Contract Number (Auto-Generated)</label>
@@ -32,21 +39,20 @@ if (!function_exists('h')) {
                        value="<?= h($contract['contract_number'] ?? '') ?>">
             </div>
 
-            <div class="col-md-8">
-                <label class="form-label" for="name">Name</label>
-                <input class="form-control" type="text" id="name" name="name"
-                       value="<?= h($contract['name'] ?? '') ?>" required>
-            </div>
 
             <div class="col-12">
                 <label class="form-label" for="description">Description</label>
-                <textarea class="form-control" id="description" name="description" rows="3"><?= h($contract['description'] ?? '') ?></textarea>
+                <?php
+                  $descVal = $contract['description'] ?? '';
+                  if ($descVal === '' && empty($isEdit)) {
+                      $cName = trim((string)($contract['name'] ?? ''));
+                      $descVal = ($cName !== '' ? $cName : '[Contract Name]') . ' as further described under the terms and conditions set forth in Exhibit A';
+                  }
+                ?>
+                <textarea class="form-control" id="description" name="description" rows="3" placeholder="[Contract Name] as further described under the terms and conditions set forth in Exhibit A"><?= h($descVal) ?></textarea>
             </div>
 
-            <div class="col-12">
-                <label class="form-label" for="contract_body_html">Contract Body HTML</label>
-                <textarea class="form-control" id="contract_body_html" name="contract_body_html" rows="6"><?= h($contract['contract_body_html'] ?? '') ?></textarea>
-            </div>
+
 
             <div class="col-md-4">
                 <label class="form-label">Contract Type</label>
@@ -56,6 +62,19 @@ if (!function_exists('h')) {
                         <option value="<?= (int)$t['contract_type_id'] ?>"
                             <?= ((string)($contract['contract_type_id'] ?? '') === (string)$t['contract_type_id']) ? 'selected' : '' ?>>
                             <?= h($t['contract_type']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">Payment Terms</label>
+                <select class="form-select" name="payment_terms_id">
+                    <option value="">(none)</option>
+                    <?php foreach (($paymentTerms ?? []) as $pt): ?>
+                        <option value="<?= (int)$pt['payment_terms_id'] ?>"
+                            <?= ((string)($contract['payment_terms_id'] ?? '') === (string)$pt['payment_terms_id']) ? 'selected' : '' ?>>
+                            <?= h($pt['name']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -74,19 +93,21 @@ if (!function_exists('h')) {
                 </select>
             </div>
 
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Status</label>
-                <?php $currentStatus = $contract['status'] ?? 'draft'; ?>
-                <select class="form-select" name="status">
-                    <option value="draft" <?= $currentStatus === 'draft' ? 'selected' : '' ?>>Draft</option>
-                    <option value="in_review" <?= $currentStatus === 'in_review' ? 'selected' : '' ?>>In Review</option>
-                    <option value="signed" <?= $currentStatus === 'signed' ? 'selected' : '' ?>>Signed</option>
-                    <option value="expired" <?= $currentStatus === 'expired' ? 'selected' : '' ?>>Expired</option>
-                    <option value="terminated" <?= $currentStatus === 'terminated' ? 'selected' : '' ?>>Terminated</option>
+                <?php $currentStatusId = $contract['contract_status_id'] ?? ''; ?>
+                <select class="form-select" name="contract_status_id" required>
+                    <option value="">Select…</option>
+                    <?php foreach (($contractStatuses ?? []) as $status): ?>
+                        <option value="<?= (int)$status['contract_status_id'] ?>" <?= ((string)$currentStatusId === (string)$status['contract_status_id']) ? 'selected' : '' ?>>
+                            <?= h($status['contract_status_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 
-            <div class="col-md-6">
+
+            <div class="col-md-4">
                 <label class="form-label">Owner Company</label>
                 <select class="form-select" name="owner_company_id" required>
                     <option value="">Select…</option>
@@ -99,20 +120,7 @@ if (!function_exists('h')) {
                 </select>
             </div>
 
-            <div class="col-md-6">
-                <label class="form-label">Counterparty Company</label>
-                <select class="form-select" name="counterparty_company_id" required>
-                    <option value="">Select…</option>
-                    <?php foreach (($companies ?? []) as $co): ?>
-                        <option value="<?= (int)$co['company_id'] ?>"
-                            <?= ((string)($contract['counterparty_company_id'] ?? '') === (string)$co['company_id']) ? 'selected' : '' ?>>
-                            <?= h($co['name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label class="form-label">Responsible Person</label>
                 <select class="form-select" name="owner_primary_contact_id">
                     <option value="">(none)</option>
@@ -127,6 +135,23 @@ if (!function_exists('h')) {
                         <option value="<?= (int)$p['person_id'] ?>"
                             <?= ((string)($contract['owner_primary_contact_id'] ?? '') === (string)$p['person_id']) ? 'selected' : '' ?>>
                             <?= h($label) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="col-12">
+              <div class="border rounded p-3">
+                <div class="row g-3">
+
+            <div class="col-md-6">
+                <label class="form-label">Counterparty Company</label>
+                <select class="form-select" name="counterparty_company_id" required>
+                    <option value="">Select…</option>
+                    <?php foreach (($companies ?? []) as $co): ?>
+                        <option value="<?= (int)$co['company_id'] ?>"
+                            <?= ((string)($contract['counterparty_company_id'] ?? '') === (string)$co['company_id']) ? 'selected' : '' ?>>
+                            <?= h($co['name']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -152,6 +177,10 @@ if (!function_exists('h')) {
                 </select>
             </div>
 
+                </div>
+              </div>
+            </div>
+
             <div class="col-md-4">
                 <label class="form-label" for="start_date">Start Date</label>
                 <input class="form-control" type="date" id="start_date" name="start_date"
@@ -170,11 +199,6 @@ if (!function_exists('h')) {
                        value="<?= h($contract['governing_law'] ?? 'North Carolina') ?>">
             </div>
 
-            <div class="col-md-3">
-                <label class="form-label" for="currency">Currency</label>
-                <input class="form-control" type="text" id="currency" name="currency" maxlength="3"
-                       value="<?= h($contract['currency'] ?? 'USD') ?>">
-            </div>
 
             <div class="col-md-3">
                 <label class="form-label" for="total_contract_value">Total Contract Value</label>
@@ -197,10 +221,22 @@ if (!function_exists('h')) {
                 </div>
             </div>
 
-            <div class="col-12">
-                <label class="form-label" for="documents_path">Documents Path</label>
-                <input class="form-control" type="text" id="documents_path" name="documents_path"
-                       value="<?= h($contract['documents_path'] ?? '') ?>">
+            <div class="col-md-4">
+                <label class="form-label" for="date_approved_by_procurement">Date Approved by Procurement</label>
+                <input class="form-control" type="date" id="date_approved_by_procurement" name="date_approved_by_procurement"
+                       value="<?= h($contract['date_approved_by_procurement'] ?? '') ?>">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label" for="date_approved_by_manager">Date Approved by Manager</label>
+                <input class="form-control" type="date" id="date_approved_by_manager" name="date_approved_by_manager"
+                       value="<?= h($contract['date_approved_by_manager'] ?? '') ?>">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label" for="date_approved_by_council">Date Approved by Council</label>
+                <input class="form-control" type="date" id="date_approved_by_council" name="date_approved_by_council"
+                       value="<?= h($contract['date_approved_by_council'] ?? '') ?>">
             </div>
 
             <div class="col-12 d-flex gap-2 mt-3">

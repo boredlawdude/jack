@@ -1,4 +1,5 @@
 <?php
+ob_start();
 require_once __DIR__ . '/../includes/init.php';
 require_once __DIR__ . '/../app/bootstrap.php';
 require_once __DIR__ . '/../app/views/layouts/header.php';
@@ -7,23 +8,32 @@ require_once APP_ROOT . '/app/controllers/CompaniesController.php';
 require_once APP_ROOT . '/app/controllers/PeopleController.php';
 require_once APP_ROOT . '/app/controllers/ContractTypesController.php';
 require_once APP_ROOT . '/app/controllers/AdminSettingsController.php';
+require_once APP_ROOT . '/app/controllers/ContractStatusController.php';
+require_once APP_ROOT . '/app/controllers/PaymentTermController.php';
 
 $companiesController = new CompaniesController();
 $PeopleController = new PeopleController();
 $ContractsController = new ContractsController();
 $ContractTypesController = new ContractTypesController();
 $AdminSettingsController = new AdminSettingsController();
+$ContractStatusController = new ContractStatusController();
+$PaymentTermController = new PaymentTermController();
 $page = $_GET['page'] ?? 'home';
 
 switch ($page) {
 
         case 'contract_documents_create':
+        case 'contract_document_create':
             $contractId = (int)($_GET['contract_id'] ?? 0);
             require APP_ROOT . '/app/views/contract_documents/create.php';
             break;
 
         case 'contract_documents_store':
             $ContractsController->storeDocument();
+            break;
+
+        case 'contract_documents_save_order':
+            $ContractsController->saveDocumentOrder();
             break;
     case 'contracts':
         $ContractsController->index();
@@ -171,6 +181,23 @@ case 'departments_store':
         require_once __DIR__ . '/contract_document_email.php';
         break;
 
+    case 'contract_document_compare':
+        require_once __DIR__ . '/contract_document_compare.php';
+        break;
+
+    case 'contract_documents_merge_pdf':
+        require_once __DIR__ . '/contract_documents_merge_pdf.php';
+        break;
+
+    case 'contract_history_add':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $ContractsController->addHistoryNote();
+        } else {
+            http_response_code(405);
+            echo 'Method not allowed.';
+        }
+        break;
+
     case 'contract_document_delete':
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ContractsController->deleteDocument();
@@ -188,6 +215,40 @@ case 'departments_store':
     case 'admin_settings_update':
         require_once APP_ROOT . '/app/controllers/AdminSettingsController.php';
         (new AdminSettingsController())->update();
+        break;
+
+    case 'admin_statuses':
+        require_once APP_ROOT . '/app/controllers/ContractStatusController.php';
+        (new ContractStatusController())->index();
+        break;
+    case 'admin_statuses_create':
+        require_once APP_ROOT . '/app/controllers/ContractStatusController.php';
+        (new ContractStatusController())->create();
+        break;
+    case 'admin_statuses_update':
+        require_once APP_ROOT . '/app/controllers/ContractStatusController.php';
+        (new ContractStatusController())->update();
+        break;
+    case 'admin_statuses_delete':
+        require_once APP_ROOT . '/app/controllers/ContractStatusController.php';
+        (new ContractStatusController())->delete();
+        break;
+
+    case 'admin_payment_terms':
+        require_once APP_ROOT . '/app/controllers/PaymentTermController.php';
+        (new PaymentTermController())->index();
+        break;
+    case 'admin_payment_terms_create':
+        require_once APP_ROOT . '/app/controllers/PaymentTermController.php';
+        (new PaymentTermController())->create();
+        break;
+    case 'admin_payment_terms_update':
+        require_once APP_ROOT . '/app/controllers/PaymentTermController.php';
+        (new PaymentTermController())->update();
+        break;
+    case 'admin_payment_terms_delete':
+        require_once APP_ROOT . '/app/controllers/PaymentTermController.php';
+        (new PaymentTermController())->delete();
         break;
 
     default:

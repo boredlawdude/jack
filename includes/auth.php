@@ -24,21 +24,38 @@ function current_person(): array {
 
     $pdo = db();
     $stmt = $pdo->prepare("
-        SELECT 
-            person_id, 
-            email, 
-            COALESCE(full_name, email, 'Unknown') AS name,   -- ← always set name
-            department_id, 
-            is_active
-            -- add any other fields you need
-        FROM people 
-        WHERE person_id = ? 
-        LIMIT 1
+      SELECT 
+        person_id, 
+        email, 
+        COALESCE(full_name, email, 'Unknown') AS name,   -- ← always set name
+        department_id, 
+        is_active
+      FROM people 
+      WHERE person_id = ? 
+      LIMIT 1
     ");
     $stmt->execute([$_SESSION['person']['person_id']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-    // Force 'name' to exist
+    // Fetch roles for this user
+    $roles = [];
+    $role = null;
+    if (!empty($user['person_id'])) {
+      $roleStmt = $pdo->prepare("
+        SELECT r.role_key
+        FROM person_roles pr
+        JOIN roles r ON r.role_id = pr.role_id AND r.is_active = 1
+        WHERE pr.person_id = ?
+      ");
+      $roleStmt->execute([$user['person_id']]);
+      $roles = $roleStmt->fetchAll(PDO::FETCH_COLUMN) ?: [];
+      if (!empty($roles)) {
+        $role = strtoupper($roles[0]);
+      }
+    }
+
+    $user['roles'] = $roles;
+    $user['role'] = $role;
     $user['name'] = $user['name'] ?? $user['email'] ?? 'Unknown User';
 
     $_SESSION['person'] = array_merge($_SESSION['person'] ?? [], $user);

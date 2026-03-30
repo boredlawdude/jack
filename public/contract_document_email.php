@@ -1,134 +1,227 @@
 <?php
+declare(strict_types=1);
 require_once __DIR__ . '/../includes/init.php';
-require_login();
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once APP_ROOT . '/includes/helpers.php';
 
-$success = false;
-$errors = [];
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
 
+$db = db();
 $docId = (int)($_GET['id'] ?? 0);
+
 if ($docId <= 0) {
     http_response_code(400);
-    exit('Missing document id');
+    exit('Missing document ID.');
 }
 
-$pdo = pdo();
-$stmt = $pdo->prepare('SELECT * FROM contract_documents WHERE contract_document_id = ? LIMIT 1');
+// Fetch document + contract + counterparty email
+$stmt = $db->prepare(
+    "SELECT cd.*, c.name AS contract_name, c.contract_number,
+            cp.email AS counterparty_email, cp.first_name AS cp_first, cp.last_name AS cp_last,
+            op.email AS owner_contact_email
+     FROM contract_documents cd
+     JOIN contracts c ON cd.contract_id = c.contract_id
+     LEFT JOIN people cp ON c.counterparty_primary_contact_id = cp.person_id
+     LEFT JOIN people op ON c.owner_primary_contact_id = op.person_id
+     WHERE cd.contract_document_id = ? LIMIT 1"
+);
 $stmt->execute([$docId]);
 $doc = $stmt->fetch(PDO::FETCH_ASSOC);
+
 if (!$doc) {
     http_response_code(404);
-    exit('Document not found');
+    exit('Document not found.');
 }
 
-// Fetch contract and related emails
-$contractId = isset($doc['contract_id']) ? (int)$doc['contract_id'] : 0;
-$emails = [];
-if ($contractId > 0) {
-    $stmt = $pdo->prepare('SELECT 
-        c.*, 
-        op.email AS owner_primary_contact_email, op.display_name AS owner_primary_contact_name,
-        cp.email AS counterparty_primary_contact_email, cp.display_name AS counterparty_primary_contact_name,
-        d.department_name
-    FROM contracts c
-    LEFT JOIN people op ON op.person_id = c.owner_primary_contact_id
-    LEFT JOIN people cp ON cp.person_id = c.counterparty_primary_contact_id
-    LEFT JOIN departments d ON d.department_id = c.department_id
-    WHERE c.contract_id = ? LIMIT 1');
-    $stmt->execute([$contractId]);
-    $c = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($c) {
-        if (!empty($c['owner_primary_contact_email'])) {
-            $emails[] = [
-                'email' => $c['owner_primary_contact_email'],
-                'label' => 'Town Contact: ' . ($c['owner_primary_contact_name'] ?? $c['owner_primary_contact_email'])
-            ];
-        }
-        if (!empty($c['counterparty_primary_contact_email'])) {
-            $emails[] = [
-                'email' => $c['counterparty_primary_contact_email'],
-                'label' => 'Counterparty: ' . ($c['counterparty_primary_contact_name'] ?? $c['counterparty_primary_contact_email'])
-            ];
-        }
-    }
+$contractId = (int)$doc['contract_id'];
+$filePath   = APP_ROOT . '/' . ltrim((string)$doc['file_path'], '/');
+$fileName   = $doc['file_name'] ?? basename($filePath);
+
+$senderName = '';
+if (!empty($_SESSION['person']['first_name'])) {
+    $senderName = $_SESSION['person']['first_name'] . ' ' . ($_SESSION['person']['last_name'] ?? '');
 }
+
+$defaultSubject = 'Document: ' . ($doc['contract_name'] ?? 'Contract') . ' - ' . $fileName;
+
+// Load email template from system settings
+$tplStmt = $db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'default_email_message' LIMIT 1");
+$tplStmt->execute();
+$emailTemplate = $tplStmt->fetchColumn();
+if ($emailTemplate) {
+    $defaultMessage = str_replace(
+        ['{contract_number}', '{contract_name}', '{sender_name}'],
+        [$doc['contract_number'] ?? '', $doc['contract_name'] ?? '', $senderName],
+        $emailTemplate
+    );
+} else {
+    $defaultMessage = "Please find the attached document for contract "
+        . ($doc['contract_number'] ?? '') . " - " . ($doc['contract_name'] ?? '') . ".\n\n"
+        . ($senderName ? "Regards,\n" . $senderName : '');
+}
+
+// Build default CC: current user email + owner primary contact (if different)
+$ccEmails = [];
+$userEmail = $_SESSION['person']['email'] ?? '';
+if ($userEmail === '' && !empty($_SESSION['person']['person_id'])) {
+    $stmt = $db->prepare("SELECT email FROM people WHERE person_id = ? LIMIT 1");
+    $stmt->execute([(int)$_SESSION['person']['person_id']]);
+    $userEmail = $stmt->fetchColumn() ?: '';
+}
+if ($userEmail !== '') {
+    $ccEmails[] = $userEmail;
+}
+$ownerEmail = $doc['owner_contact_email'] ?? '';
+if ($ownerEmail !== '' && $ownerEmail !== $userEmail) {
+    $ccEmails[] = $ownerEmail;
+}
+$defaultCc = implode(', ', $ccEmails);
+
+$flashSuccess = '';
+$flashError = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $to = trim($_POST['to'] ?? '');
-    $subject = trim($_POST['subject'] ?? $doc['file_name']);
+    $toEmail = trim($_POST['to_email'] ?? '');
+    $ccEmail = trim($_POST['cc_email'] ?? '');
+    $subject = trim($_POST['subject'] ?? '');
     $message = trim($_POST['message'] ?? '');
-    $filePath = APP_ROOT . '/' . $doc['file_path'];
 
-    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Invalid recipient email address.';
-    } elseif (!file_exists($filePath)) {
-        $errors[] = 'File not found on server.';
+    if (!filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+        $flashError = 'Please enter a valid recipient email address.';
+    } elseif ($ccEmail !== '') {
+        $ccList = array_map('trim', explode(',', $ccEmail));
+        $badCc = false;
+        foreach ($ccList as $cc) {
+            if ($cc !== '' && !filter_var($cc, FILTER_VALIDATE_EMAIL)) {
+                $badCc = true;
+                break;
+            }
+        }
+        if ($badCc) {
+            $flashError = 'One or more CC email addresses are invalid.';
+        }
+    }
+    if (!$flashError && $subject === '') {
+        $flashError = 'Subject is required.';
+    } elseif (!$flashError && !is_file($filePath)) {
+        $flashError = 'Document file not found on disk.';
     } else {
-        // Send email with attachment
-        $boundary = md5(uniqid(time()));
-        $headers = "From: contracts@yourdomain.com\r\n";
-        $headers .= "MIME-Version: 1.0\r\n";
-        $headers .= "Content-Type: multipart/mixed; boundary=\"$boundary\"\r\n";
+        $mail = new PHPMailer(true);
+        try {
+            $mail->isSMTP();
+            $mail->Host       = SMTP_HOST;
+            $mail->SMTPAuth   = true;
+            $mail->Username   = SMTP_USERNAME;
+            $mail->Password   = SMTP_PASSWORD;
+            $mail->SMTPSecure = (SMTP_SECURE === 'ssl')
+                ? PHPMailer::ENCRYPTION_SMTPS
+                : PHPMailer::ENCRYPTION_STARTTLS;
+            $mail->Port       = SMTP_PORT;
+            $mail->Timeout    = 15;
 
-        $body = "--$boundary\r\n";
-        $body .= "Content-Type: text/plain; charset=utf-8\r\n\r\n";
-        $body .= $message . "\r\n";
-        $body .= "--$boundary\r\n";
-        $body .= "Content-Type: application/octet-stream; name=\"" . basename($filePath) . "\"\r\n";
-        $body .= "Content-Transfer-Encoding: base64\r\n";
-        $body .= "Content-Disposition: attachment; filename=\"" . basename($filePath) . "\"\r\n\r\n";
-        $body .= chunk_split(base64_encode(file_get_contents($filePath))) . "\r\n";
-        $body .= "--$boundary--";
+            $mail->setFrom(MAIL_FROM_EMAIL, MAIL_FROM_NAME);
+            $mail->addAddress($toEmail);
+            if ($ccEmail !== '') {
+                foreach (array_map('trim', explode(',', $ccEmail)) as $cc) {
+                    if ($cc !== '') {
+                        $mail->addCC($cc);
+                    }
+                }
+            }
 
-        if (mail($to, $subject, $body, $headers)) {
-            $success = true;
-        } else {
-            $errors[] = 'Failed to send email.';
+            $mail->isHTML(true);
+            $mail->Subject = $subject;
+            $mail->Body    = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
+            $mail->AltBody = $message;
+
+            $mail->addAttachment($filePath, $fileName);
+
+            $mail->send();
+
+            // Log to history
+            $changedBy = isset($_SESSION['person']['person_id']) ? (int)$_SESSION['person']['person_id'] : null;
+            $db->prepare(
+                "INSERT INTO contract_status_history (contract_id, event_type, old_status, new_status, changed_by, changed_at, notes)
+                 VALUES (?, 'document_emailed', NULL, NULL, ?, NOW(), ?)"
+            )->execute([$contractId, $changedBy, 'Emailed ' . $fileName . ' to ' . $toEmail]);
+
+            $flashSuccess = 'Document emailed successfully to ' . htmlspecialchars($toEmail, ENT_QUOTES, 'UTF-8');
+        } catch (Exception $e) {
+            $flashError = 'Failed to send email. Please check SMTP settings.';
+            error_log('PHPMailer error: ' . $e->getMessage());
         }
     }
 }
-
-// Only include header once, and use the app layout
-
 ?>
-<div class="container py-4">
-  <h1 class="h4 mb-3">Email Document</h1>
-  <?php if ($success): ?>
-    <div class="alert alert-success">Email sent successfully!</div>
-  <?php endif; ?>
-  <?php if ($errors): ?>
-    <div class="alert alert-danger">
-      <?php foreach ($errors as $e): ?>
-        <div><?= htmlspecialchars($e) ?></div>
-      <?php endforeach; ?>
+
+<div class="container py-4" style="max-width: 700px;">
+
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/index.php?page=contracts">Contracts</a></li>
+      <li class="breadcrumb-item"><a href="/index.php?page=contracts_show&contract_id=<?= $contractId ?>"><?= h($doc['contract_number'] ?? (string)$contractId) ?></a></li>
+      <li class="breadcrumb-item active">Email Document</li>
+    </ol>
+  </nav>
+
+  <h1 class="h4 mb-4">Email Document</h1>
+
+  <?php if ($flashSuccess): ?>
+    <div class="alert alert-success"><?= $flashSuccess ?>
+      <div class="mt-2">
+        <a href="/index.php?page=contracts_show&contract_id=<?= $contractId ?>" class="btn btn-sm btn-outline-success">Back to Contract</a>
+      </div>
     </div>
   <?php endif; ?>
-  <form method="post">
-    <div class="mb-3">
-      <label for="to" class="form-label">To (email address)</label>
-      <select class="form-select mb-2" id="to_select" onchange="document.getElementById('to').value=this.value;">
-        <option value="">-- Select recipient --</option>
-        <?php foreach ($emails as $e): ?>
-          <option value="<?= htmlspecialchars($e['email']) ?>"><?= htmlspecialchars($e['label']) ?> (<?= htmlspecialchars($e['email']) ?>)</option>
-        <?php endforeach; ?>
-      </select>
-      <input type="email" class="form-control" id="to" name="to" required value="<?= htmlspecialchars($_POST['to'] ?? '') ?>">
-      <div class="form-text">Choose from the list or enter an email address.</div>
+
+  <?php if ($flashError): ?>
+    <div class="alert alert-danger"><?= h($flashError) ?></div>
+  <?php endif; ?>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="mb-3 p-2 bg-light rounded">
+        <small class="text-muted">Attachment:</small>
+        <strong><?= h($fileName) ?></strong>
+        <?php if (!empty($doc['doc_type'])): ?>
+          <span class="badge bg-secondary ms-2"><?= h($doc['doc_type']) ?></span>
+        <?php endif; ?>
+      </div>
+
+      <form method="post">
+        <div class="mb-3">
+          <label for="to_email" class="form-label">To <span class="text-danger">*</span></label>
+          <input type="email" class="form-control" id="to_email" name="to_email" required
+                 value="<?= h($_POST['to_email'] ?? $doc['counterparty_email'] ?? '') ?>"
+                 placeholder="recipient@example.com">
+        </div>
+
+        <div class="mb-3">
+          <label for="cc_email" class="form-label">CC</label>
+          <input type="email" class="form-control" id="cc_email" name="cc_email"
+                 value="<?= h($_POST['cc_email'] ?? $defaultCc) ?>"
+                 placeholder="cc@example.com (optional)">
+        </div>
+
+        <div class="mb-3">
+          <label for="subject" class="form-label">Subject <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="subject" name="subject" required
+                 value="<?= h($_POST['subject'] ?? $defaultSubject) ?>">
+        </div>
+
+        <div class="mb-3">
+          <label for="message" class="form-label">Message</label>
+          <textarea class="form-control" id="message" name="message" rows="6"><?= h($_POST['message'] ?? $defaultMessage) ?></textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Send Email</button>
+          <a href="/index.php?page=contracts_show&contract_id=<?= $contractId ?>" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
     </div>
-    <div class="mb-3">
-      <label for="subject" class="form-label">Subject</label>
-      <input type="text" class="form-control" id="subject" name="subject" value="<?= htmlspecialchars($_POST['subject'] ?? $doc['file_name']) ?>">
-    </div>
-    <div class="mb-3">
-      <label for="message" class="form-label">Message</label>
-      <textarea class="form-control" id="message" name="message" rows="4"><?= htmlspecialchars($_POST['message'] ?? '') ?></textarea>
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Attachment</label>
-      <div><?= htmlspecialchars($doc['file_name']) ?></div>
-    </div>
-    <button type="submit" class="btn btn-primary">Send Email</button>
-    <a href="/index.php?page=contracts_show&contract_id=<?= (int)($doc['contract_id'] ?? 0) ?>" class="btn btn-outline-secondary ms-2">Back</a>
-  </form>
+  </div>
 </div>
-<?php include dirname(__DIR__) . '/app/views/layouts/footer.php'; ?>

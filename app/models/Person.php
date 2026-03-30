@@ -99,7 +99,7 @@ final class Person
     public function allDepartments(): array
     {
         $stmt = $this->pdo->query("
-            SELECT department_id, department_name
+            SELECT department_id, department_name, dept_initials
             FROM departments
             ORDER BY department_name
         ");

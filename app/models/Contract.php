@@ -69,7 +69,8 @@ class Contract
             c.contract_id,
             c.contract_number,
             c.name,
-            c.status,
+            c.contract_status_id,
+            cs.contract_status_name AS status_name,
             c.start_date,
             c.end_date,
             c.total_contract_value,
@@ -84,6 +85,8 @@ class Contract
             ON c.department_id = d.department_id
         LEFT JOIN people op
             ON c.owner_primary_contact_id = op.person_id
+        LEFT JOIN contract_statuses cs
+            ON c.contract_status_id = cs.contract_status_id
         WHERE 1=1
     ";
 
@@ -100,9 +103,9 @@ class Contract
         $params['q'] = '%' . trim((string)$filters['q']) . '%';
     }
 
-    if (!empty($filters['status'])) {
-        $sql .= " AND c.status = :status";
-        $params['status'] = (string)$filters['status'];
+    if (!empty($filters['contract_status_id'])) {
+        $sql .= " AND c.contract_status_id = :contract_status_id";
+        $params['contract_status_id'] = (int)$filters['contract_status_id'];
     }
 
     if (!empty($filters['department_id'])) {
@@ -139,9 +142,21 @@ class Contract
     public function find(int $contractId): ?array
     {
         $sql = "
-            SELECT *
-            FROM contracts
-            WHERE contract_id = :contract_id
+            SELECT c.*, ct.contract_type AS contract_type_name, pt.name AS payment_terms_name,
+                   d.department_name, d.department_code,
+                   co.name AS counterparty_company_name,
+                   op.full_name AS owner_primary_contact_name, op.email AS owner_primary_contact_email,
+                   cp.full_name AS counterparty_primary_contact_name, cp.email AS counterparty_primary_contact_email,
+                   cs.contract_status_name AS status_name
+            FROM contracts c
+            LEFT JOIN contract_types ct ON c.contract_type_id = ct.contract_type_id
+            LEFT JOIN payment_terms pt ON c.payment_terms_id = pt.payment_terms_id
+            LEFT JOIN companies co ON c.counterparty_company_id = co.company_id
+            LEFT JOIN departments d ON c.department_id = d.department_id
+            LEFT JOIN people op ON c.owner_primary_contact_id = op.person_id
+            LEFT JOIN people cp ON c.counterparty_primary_contact_id = cp.person_id
+            LEFT JOIN contract_statuses cs ON c.contract_status_id = cs.contract_status_id
+            WHERE c.contract_id = :contract_id
             LIMIT 1
         ";
 
@@ -176,12 +191,15 @@ class Contract
                 currency,
                 total_contract_value,
                 payment_terms_id,
-                status,
+                contract_status_id,
                 start_date,
                 end_date,
                 renewal_term_months,
                 auto_renew,
-                documents_path
+                documents_path,
+                date_approved_by_procurement,
+                date_approved_by_manager,
+                date_approved_by_council
             ) VALUES (
                 :contract_number,
                 :name,
@@ -197,12 +215,15 @@ class Contract
                 :currency,
                 :total_contract_value,
                 :payment_terms_id,
-                :status,
+                :contract_status_id,
                 :start_date,
                 :end_date,
                 :renewal_term_months,
                 :auto_renew,
-                :documents_path
+                :documents_path,
+                :date_approved_by_procurement,
+                :date_approved_by_manager,
+                :date_approved_by_council
             )
         ";
 
@@ -234,12 +255,15 @@ class Contract
                 currency = :currency,
                 total_contract_value = :total_contract_value,
                 payment_terms_id = :payment_terms_id,
-                status = :status,
+                contract_status_id = :contract_status_id,
                 start_date = :start_date,
                 end_date = :end_date,
                 renewal_term_months = :renewal_term_months,
                 auto_renew = :auto_renew,
-                documents_path = :documents_path
+                documents_path = :documents_path,
+                date_approved_by_procurement = :date_approved_by_procurement,
+                date_approved_by_manager = :date_approved_by_manager,
+                date_approved_by_council = :date_approved_by_council
             WHERE contract_id = :contract_id
         ";
 
@@ -287,12 +311,15 @@ class Contract
             'currency' => $this->nullIfEmpty($data['currency'] ?? 'USD'),
             'total_contract_value' => $this->nullIfEmpty($data['total_contract_value'] ?? null),
             'payment_terms_id' => $this->nullIfEmpty($data['payment_terms_id'] ?? 1),
-            'status' => $this->normalizeStatus($data['status'] ?? 'draft'),
+            'contract_status_id' => $this->nullIfEmpty($data['contract_status_id'] ?? null),
             'start_date' => $this->nullIfEmpty($data['start_date'] ?? null),
             'end_date' => $this->nullIfEmpty($data['end_date'] ?? null),
             'renewal_term_months' => $this->nullIfEmpty($data['renewal_term_months'] ?? null),
             'auto_renew' => !empty($data['auto_renew']) ? 1 : 0,
             'documents_path' => $this->nullIfEmpty($data['documents_path'] ?? null),
+            'date_approved_by_procurement' => $this->nullIfEmpty($data['date_approved_by_procurement'] ?? null),
+            'date_approved_by_manager' => $this->nullIfEmpty($data['date_approved_by_manager'] ?? null),
+            'date_approved_by_council' => $this->nullIfEmpty($data['date_approved_by_council'] ?? null),
         ];
     }
 
@@ -316,9 +343,8 @@ class Contract
 
     private function normalizeStatus(mixed $value): string
     {
-        $allowed = ['draft', 'in_review', 'signed', 'expired', 'terminated'];
-        $status = (string)$value;
-
-        return in_array($status, $allowed, true) ? $status : 'draft';
+        $status = trim((string)$value);
+        // Accept any non-empty status (from contract_statuses table)
+        return $status !== '' ? $status : 'draft';
     }
 }

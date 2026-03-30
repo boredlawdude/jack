@@ -302,6 +302,45 @@ $townEmployees = $townEmployees ?? [];
             </form>
         </div>
     </div>
+
+        <?php // Company Comments Block: $comments is provided by controller ?>
+    <div class="card shadow-sm mt-4">
+      <div class="card-header fw-semibold">Company Comments (Internal)</div>
+      <div class="card-body">
+        <?php if (function_exists('can_edit_company') ? can_edit_company($companyId) : true): ?>
+          <form method="post" action="/company_comment_create.php" class="mb-3">
+            <input type="hidden" name="company_id" value="<?= (int)$companyId ?>">
+            <label class="form-label">Add Comment</label>
+            <textarea class="form-control" name="comment_text" rows="3" required></textarea>
+            <button class="btn btn-sm btn-primary mt-2">Add</button>
+          </form>
+        <?php endif; ?>
+        <?php if (empty($comments)): ?>
+          <div class="text-muted">No comments yet.</div>
+        <?php else: ?>
+          <div class="list-group">
+            <?php foreach ($comments as $cmt): ?>
+              <div class="list-group-item">
+                <div class="d-flex justify-content-between">
+                  <div class="small text-muted">
+                    <?= h($cmt['created_at']) ?> • <?= h($cmt['author_name']) ?>
+                  </div>
+                  <?php if ((function_exists('is_system_admin') && is_system_admin()) || (function_exists('current_person_id') && (int)$cmt['person_id'] === current_person_id())): ?>
+                    <form method="post" action="/company_comment_delete.php"
+                          onsubmit="return confirm('Delete this comment?');">
+                      <input type="hidden" name="company_comment_id" value="<?= (int)$cmt['company_comment_id'] ?>">
+                      <input type="hidden" name="company_id" value="<?= (int)$companyId ?>">
+                      <button class="btn btn-sm btn-outline-danger">Delete</button>
+                    </form>
+                  <?php endif; ?>
+                </div>
+                <div class="mt-2"><?= nl2br(h($cmt['comment_text'])) ?></div>
+              </div>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
+      </div>
+    </div>
 <?php endif; ?>
 
 <?php require APP_ROOT . '/app/views/layouts/footer.php'; ?>
