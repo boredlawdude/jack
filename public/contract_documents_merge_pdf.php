@@ -145,21 +145,32 @@ function docxToPdfViaLibreOffice(string $docxPath): ?string
     if ($lo === '' || !is_file($lo)) {
         return null;
     }
-    $tmpDir = sys_get_temp_dir() . '/lo_' . uniqid();
-    mkdir($tmpDir, 0755, true);
-    // Set HOME so LibreOffice can write its user profile when running as www-data
-    $cmd = 'HOME=/var/www ' . escapeshellarg($lo)
-         . ' --headless --convert-to pdf'
+    $tmpDir     = sys_get_temp_dir() . '/lo_out_' . uniqid();
+    $profileDir = sys_get_temp_dir() . '/lo_prof_' . uniqid();
+    mkdir($tmpDir,     0755, true);
+    mkdir($profileDir, 0755, true);
+
+    // Use a per-run writable user profile to avoid home-dir permission issues
+    $profileUri = 'file://' . $profileDir;
+    $cmd = 'HOME=' . escapeshellarg($profileDir) . ' '
+         . escapeshellarg($lo)
+         . ' --headless'
+         . ' "-env:UserInstallation=' . $profileUri . '"'
+         . ' --convert-to pdf'
          . ' --outdir ' . escapeshellarg($tmpDir)
          . ' ' . escapeshellarg(realpath($docxPath))
          . ' 2>&1';
     exec($cmd, $out, $exit);
+
     $base    = pathinfo($docxPath, PATHINFO_FILENAME);
     $outFile = $tmpDir . '/' . $base . '.pdf';
     if ($exit === 0 && is_file($outFile) && filesize($outFile) > 0) {
+        // Clean up profile dir but keep outFile (caller cleans it via $tempFiles)
+        shell_exec('rm -rf ' . escapeshellarg($profileDir));
         return $outFile;
     }
     error_log('LibreOffice DOCX→PDF failed (exit=' . $exit . '): ' . implode("\n", $out));
+    shell_exec('rm -rf ' . escapeshellarg($profileDir) . ' ' . escapeshellarg($tmpDir));
     return null;
 }
 
