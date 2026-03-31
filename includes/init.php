@@ -20,6 +20,33 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     ]);
 
     session_start();
+
+    // Session fingerprinting — invalidate sessions from different browsers/IPs
+    $fingerprint = hash('sha256', ($_SERVER['HTTP_USER_AGENT'] ?? '') . ($secure ? 'https' : 'http'));
+    if (isset($_SESSION['_fingerprint'])) {
+        if (!hash_equals($_SESSION['_fingerprint'], $fingerprint)) {
+            // Fingerprint mismatch — destroy and restart
+            session_unset();
+            session_destroy();
+            session_start();
+        }
+    } else {
+        $_SESSION['_fingerprint'] = $fingerprint;
+    }
+
+    // Absolute session timeout — 8 hours regardless of activity
+    $maxLifetime = 8 * 3600;
+    if (isset($_SESSION['_created_at'])) {
+        if (time() - $_SESSION['_created_at'] > $maxLifetime) {
+            session_unset();
+            session_destroy();
+            session_start();
+            $_SESSION['_fingerprint'] = $fingerprint;
+            $_SESSION['_created_at'] = time();
+        }
+    } else {
+        $_SESSION['_created_at'] = time();
+    }
 }
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/functions.php';

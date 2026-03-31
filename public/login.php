@@ -33,21 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       header("Location: " . safe_next_local($next, '/index.php?page=contracts'));
       exit;
     }
-    $errors[] = "Login failed.";
-    // Debug output for failed login
-    $pdo = db();
-    $stmt = $pdo->prepare("SELECT * FROM people WHERE email = ? LIMIT 1");
-    $stmt->execute([$email]);
-    $p = $stmt->fetch(PDO::FETCH_ASSOC);
-    if (!$p) {
-      $errors[] = "No user found with that email.";
-    } else {
-      $errors[] = "User found. is_active=" . ($p['is_active'] ?? 'null') . ", can_login=" . ($p['can_login'] ?? 'null');
-      if (empty($p['password_hash'])) $errors[] = "No password set.";
-      elseif (!password_verify($pw, (string)$p['password_hash'])) $errors[] = "Password does not match.";
-    }
-    $errors[] = "Session after login attempt: ";
-    $errors[] = print_r($_SESSION, true);
+    $errors[] = "Invalid email or password.";
   }
 }
 ?>
