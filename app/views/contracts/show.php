@@ -279,7 +279,7 @@ $status         = trim((string)($contract['status_name'] ?? ''));
               </table>
             </div>
               <div class="p-2 text-end">
-                <button type="submit" class="btn btn-sm btn-outline-primary">Save Order</button>
+                <button type="submit" class="btn btn-sm btn-outline-primary">Save Order &amp; Labels</button>
               </div>
             </form>
           <?php else: ?>
