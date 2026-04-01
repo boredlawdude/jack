@@ -145,8 +145,10 @@ class Contract
             SELECT c.*, ct.contract_type AS contract_type_name, pt.name AS payment_terms_name,
                    d.department_name, d.department_code,
                    co.name AS counterparty_company_name,
-                   op.full_name AS owner_primary_contact_name, op.email AS owner_primary_contact_email,
-                   cp.full_name AS counterparty_primary_contact_name, cp.email AS counterparty_primary_contact_email,
+                   op.email AS owner_primary_contact_email,
+                   COALESCE(op.full_name, op.display_name) AS owner_primary_contact_name,
+                   cp.email AS counterparty_primary_contact_email,
+                   COALESCE(cp.full_name, cp.display_name) AS counterparty_primary_contact_name,
                    cs.contract_status_name AS status_name
             FROM contracts c
             LEFT JOIN contract_types ct ON c.contract_type_id = ct.contract_type_id
