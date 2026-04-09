@@ -217,17 +217,19 @@ if (!function_exists('h')) {
             </div>
 
             <div class="col-md-3">
-                <label class="form-label" for="renewal_term_months">Renewal Term (Months)</label>
-                <input class="form-control" type="number" id="renewal_term_months" name="renewal_term_months"
-                       value="<?= h($contract['renewal_term_months'] ?? '') ?>">
+                <label class="form-label" for="po_number">PO Number</label>
+                <input class="form-control" type="text" id="po_number" name="po_number"
+                       maxlength="20"
+                       value="<?= h($contract['po_number'] ?? '') ?>">
             </div>
 
             <div class="col-md-3">
-                <label class="form-label d-block">Auto Renew</label>
-                <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" id="auto_renew" name="auto_renew" value="1"
-                        <?= !empty($contract['auto_renew']) ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="auto_renew">Yes</label>
+                <label class="form-label" for="po_amount">PO Amount</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input class="form-control" type="text" id="po_amount" name="po_amount"
+                           placeholder="0.00"
+                           value="<?= h($contract['po_amount'] ?? '') ?>">
                 </div>
             </div>
 
