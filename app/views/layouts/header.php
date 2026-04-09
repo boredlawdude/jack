@@ -40,7 +40,7 @@ declare(strict_types=1);
 
 <nav class="navbar navbar-expand-lg app-navbar shadow-sm mb-4">
   <div class="container">
-    <a class="navbar-brand fw-semibold" href="/index.php?page=contracts">
+    <a class="navbar-brand fw-semibold" href="/index.php?page=dashboard">
       <?= htmlspecialchars(defined('APP_NAME') ? APP_NAME : 'Contracts App', ENT_QUOTES, 'UTF-8') ?>
     </a>
 
@@ -50,7 +50,8 @@ declare(strict_types=1);
 
     <div class="collapse navbar-collapse" id="navMain">
       <ul class="navbar-nav me-auto">
-        <li class="nav-item"><a class="nav-link" href="/index.php?page=contracts">Contracts-</a></li>
+        <li class="nav-item"><a class="nav-link" href="/index.php?page=dashboard">Dashboard</a></li>
+        <li class="nav-item"><a class="nav-link" href="/index.php?page=contracts">Contracts</a></li>
         <li class="nav-item"><a class="nav-link" href="/index.php?page=contracts_create">New Contract</a></li>
 
         <li class="nav-item"><a class="nav-link" href="/index.php?page=companies">Companies</a></li>

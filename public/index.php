@@ -13,6 +13,7 @@ require_once APP_ROOT . '/app/controllers/ContractStatusController.php';
 require_once APP_ROOT . '/app/controllers/PaymentTermController.php';
 require_once APP_ROOT . '/app/controllers/BiddingComplianceController.php';
 require_once APP_ROOT . '/app/controllers/DocuSignController.php';
+require_once APP_ROOT . '/app/controllers/DashboardController.php';
 
 $companiesController = new CompaniesController();
 $PeopleController = new PeopleController();
@@ -22,9 +23,14 @@ $AdminSettingsController = new AdminSettingsController();
 $ContractStatusController = new ContractStatusController();
 $PaymentTermController = new PaymentTermController();
 $BiddingComplianceController = new BiddingComplianceController();
-$page = $_GET['page'] ?? 'home';
+$page = $_GET['page'] ?? 'dashboard';
 
 switch ($page) {
+
+    case 'dashboard':
+        (new DashboardController())->index();
+        break;
+
 
         case 'contract_documents_create':
         case 'contract_document_create':
@@ -302,7 +308,6 @@ case 'departments_store':
         break;
 
     default:
-          $ContractsController->index();
-       
+        (new DashboardController())->index();
         break;
 }
