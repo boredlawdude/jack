@@ -27,7 +27,13 @@ function current_person(): array {
       SELECT 
         person_id, 
         email, 
-        COALESCE(full_name, email, 'Unknown') AS name,   -- ← always set name
+        COALESCE(
+          NULLIF(TRIM(full_name), ''),
+          NULLIF(TRIM(display_name), ''),
+          NULLIF(TRIM(CONCAT(COALESCE(first_name,''), ' ', COALESCE(last_name,''))), ''),
+          email,
+          'Unknown'
+        ) AS name,
         department_id, 
         is_active
       FROM people 
