@@ -70,10 +70,21 @@ class PaymentTermController {
             exit('Access denied. System admin required.');
         }
         $id = (int)($_POST['payment_terms_id'] ?? 0);
-        if ($id > 0) {
-            $this->model->delete($id);
+        if ($id <= 0) {
+            $_SESSION['payment_term_errors'] = ['Invalid payment term ID.'];
+            header('Location: /index.php?page=admin_payment_terms');
+            exit;
         }
-        $_SESSION['payment_term_success'] = true;
+        try {
+            $this->model->delete($id);
+            $_SESSION['payment_term_success'] = true;
+        } catch (\PDOException $e) {
+            if (str_contains($e->getMessage(), '1451') || str_contains($e->getMessage(), 'foreign key')) {
+                $_SESSION['payment_term_errors'] = ['Cannot delete: this payment term is in use by one or more contracts.'];
+            } else {
+                $_SESSION['payment_term_errors'] = ['Delete failed. Please try again.'];
+            }
+        }
         header('Location: /index.php?page=admin_payment_terms');
         exit;
     }

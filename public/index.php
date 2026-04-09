@@ -260,8 +260,12 @@ case 'departments_store':
         (new PaymentTermController())->update();
         break;
     case 'admin_payment_terms_delete':
-        require_once APP_ROOT . '/app/controllers/PaymentTermController.php';
-        (new PaymentTermController())->delete();
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            require_once APP_ROOT . '/app/controllers/PaymentTermController.php';
+            (new PaymentTermController())->delete();
+        } else {
+            http_response_code(405);
+        }
         break;
 
     // ── DocuSign ──────────────────────────────────────────────────────────────

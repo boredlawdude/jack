@@ -35,10 +35,8 @@
                         <td>
                             <button type="submit" class="btn btn-sm btn-primary">Save</button>
                     </form>
-                    <form method="post" action="/index.php?page=admin_payment_terms_delete" style="display:inline">
-                        <input type="hidden" name="payment_terms_id" value="<?= (int)$term['payment_terms_id'] ?>">
-                        <button type="submit" class="btn btn-sm btn-danger ms-1" onclick="return confirm('Delete this payment term?')">Delete</button>
-                    </form>
+                    <button type="button" class="btn btn-sm btn-danger ms-1"
+                            onclick="if(confirm('Delete this payment term?')){var f=document.createElement('form');f.method='post';f.action='/index.php?page=admin_payment_terms_delete';var i=document.createElement('input');i.type='hidden';i.name='payment_terms_id';i.value='<?= (int)$term['payment_terms_id'] ?>';f.appendChild(i);document.body.appendChild(f);f.submit();}">Delete</button>
                         </td>
                 </tr>
             <?php endforeach; ?>
