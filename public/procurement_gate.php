@@ -163,7 +163,7 @@ function determineOutcome(
             </div>
 
             <div class="mb-3">
-                <label class="form-label fw-semibold">Does this require formal or informal bidding, RFQ, RFP, or Procurement review?</label>
+                <label class="form-label fw-semibold">Does this require formal or informal bidding, RFQ, RFP, or Procurement review? <span class="text-muted fw-normal">(e.g. &gt;$500,000 in construction or repair; Engineering/Architectural/Surveying over $50k; or not exempted by manager or CMAR)</span></label>
                 <select name="bidding_required" class="form-select">
                     <option value="">-- Select --</option>
                     <option value="1">Yes</option>
