@@ -113,7 +113,10 @@ function determineOutcome(
 
 <div class="container py-5" style="max-width:720px;">
     <div class="text-center mb-4">
-        <h1 class="h3 fw-bold">Before You Start a Contract</h1>
+        <img src="https://www.hollyspringsnc.gov/ImageRepository/Document?documentId=48171"
+             alt="Town of Holly Springs"
+             style="height:90px;width:auto;">
+        <h1 class="h3 fw-bold mt-3">Before You Start a Contract</h1>
         <p class="text-muted">Answer a few questions to determine the right path for your request.</p>
     </div>
 
