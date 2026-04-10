@@ -107,6 +107,10 @@ function determineOutcome(
 </head>
 <body class="bg-light">
 
+<div class="text-end p-3">
+    <a href="/login.php" class="text-muted small">Bypass to Contracts DB</a>
+</div>
+
 <div class="container py-5" style="max-width:720px;">
     <div class="text-center mb-4">
         <h1 class="h3 fw-bold">Before You Start a Contract</h1>
@@ -190,10 +194,6 @@ function determineOutcome(
     </form>
 
     <div id="gateResult" class="mt-4"></div>
-
-    <div class="text-center mt-4">
-        <a href="/login.php" class="text-muted small">Bypass to Contracts DB</a>
-    </div>
 </div>
 
 <script>
