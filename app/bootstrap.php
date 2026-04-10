@@ -21,9 +21,11 @@ if (!defined('APP_ROOT')) {
 $envFile = APP_ROOT . '/.env';
 
 if (file_exists($envFile)) {
-    $env = parse_ini_file($envFile);
-    foreach ($env as $key => $value) {
-        $_ENV[$key] = $value;
+    $env = parse_ini_file($envFile, false, INI_SCANNER_RAW);
+    if (is_array($env)) {
+        foreach ($env as $key => $value) {
+            $_ENV[$key] = $value;
+        }
     }
 }
 
@@ -32,19 +34,6 @@ if (file_exists($envFile)) {
 | Database Connection
 |--------------------------------------------------------------------------
 */
-
-
-
-//define('APP_ROOT', dirname(__DIR__));
-
-$envFile = APP_ROOT . '/.env';
-
-if (file_exists($envFile)) {
-    $env = parse_ini_file($envFile);
-    foreach ($env as $key => $value) {
-        $_ENV[$key] = $value;
-    }
-}
 
 if (!function_exists('db')) {
     function db(): PDO
