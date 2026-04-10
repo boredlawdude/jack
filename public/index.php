@@ -27,11 +27,20 @@ $BiddingComplianceController = new BiddingComplianceController();
 $page = $_GET['page'] ?? 'dashboard';
 
 switch ($page) {
+    case 'procurement_gate':
+        require_once APP_ROOT . '/app/controllers/ProcurementGateController.php';
+        (new ProcurementGateController())->index();
+        break;
+
+    case 'procurement_gate_evaluate':
+        require_once APP_ROOT . '/app/controllers/ProcurementGateController.php';
+        (new ProcurementGateController())->evaluate();
+        break;
 
     case 'dashboard':
         (new DashboardController())->index();
         break;
-
+        
 
         case 'contract_documents_create':
         case 'contract_document_create':
