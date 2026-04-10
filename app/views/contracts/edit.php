@@ -78,7 +78,7 @@ if (!function_exists('h')) {
             </div>
 
             <div class="col-md-4">
-                <label class="form-label">Payment Terms</label>
+                <label class="form-label">Payment Type</label>
                 <select class="form-select" name="payment_terms_id">
                     <option value="">(none)</option>
                     <?php foreach (($paymentTerms ?? []) as $pt): ?>
@@ -114,6 +114,13 @@ if (!function_exists('h')) {
                         </option>
                     <?php endforeach; ?>
                 </select>
+            </div>
+
+            <div class="col-md-5">
+                <label class="form-label">Status Comment <span class="text-muted fw-normal small">(20 chars)</span></label>
+                <input type="text" class="form-control" name="status_comment"
+                       maxlength="20"
+                       value="<?= h($contract['status_comment'] ?? '') ?>">
             </div>
 
 

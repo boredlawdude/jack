@@ -138,7 +138,7 @@ $userName = h($person['name'] ?? $person['email'] ?? 'Unknown User');
                             <th>Department</th>
                             <th>Responsible</th>
                             <th>Value</th>
-                            <th>End Date</th>
+                            <th>Comment</th>
                             <th style="width:120px;"></th>
                         </tr>
                     </thead>
@@ -166,7 +166,7 @@ $userName = h($person['name'] ?? $person['email'] ?? 'Unknown User');
                                 <?php endif; ?>
                             </td>
 
-                            <td><?= h($c['end_date'] ?? '') ?></td>
+                            <td class="text-muted small"><?= h($c['status_comment'] ?? '') ?></td>
 
                             <td class="text-end">
                                 <a class="btn btn-sm btn-outline-secondary"

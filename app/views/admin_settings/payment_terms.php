@@ -2,7 +2,7 @@
 // app/views/admin_settings/payment_terms.php
 ?>
 <div class="container mt-4">
-    <h2 class="h4 mb-3">Payment Terms</h2>
+    <h2 class="h4 mb-3">Payment Types</h2>
     <?php if (!empty($success)): ?>
         <div class="alert alert-success">Payment term updated successfully.</div>
     <?php endif; ?>
@@ -43,7 +43,7 @@
             <tr>
                 <form method="post" action="/index.php?page=admin_payment_terms_create">
                     <td></td>
-                    <td><input type="text" name="name" class="form-control form-control-sm" placeholder="New payment term name" required></td>
+                        <td><input type="text" name="name" class="form-control form-control-sm" placeholder="New payment type name" required></td>
                     <td><input type="text" name="description" class="form-control form-control-sm" placeholder="Description"></td>
                     <td><button type="submit" class="btn btn-sm btn-success">Add</button></td>
                 </form>

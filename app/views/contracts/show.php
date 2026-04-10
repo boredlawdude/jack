@@ -32,6 +32,9 @@ $status         = trim((string)($contract['status_name'] ?? ''));
               }
           } ?>
           <span class="badge text-bg-<?= status_badge($status) ?>"><?= h($status) ?></span>
+          <?php if (!empty($contract['status_comment'])): ?>
+            <span class="text-muted small ms-1"><?= h($contract['status_comment']) ?></span>
+          <?php endif; ?>
         <?php endif; ?>
       </div>
     </div>
@@ -83,7 +86,7 @@ $status         = trim((string)($contract['status_name'] ?? ''));
             </div>
 
             <div class="col-md-6">
-              <div class="small text-muted">Payment Terms</div>
+              <div class="small text-muted">Payment Type</div>
               <div><?= h($contract['payment_terms_name'] ?? '') ?: '—' ?></div>
             </div>
 
@@ -151,7 +154,7 @@ $status         = trim((string)($contract['status_name'] ?? ''));
             </div>
 
             <div class="col-md-12">
-              <div class="small text-muted">Payment Terms</div>
+              <div class="small text-muted">Payment Type</div>
               <div><?= h($contract['payment_terms_name'] ?? '') ?: '—' ?></div>
             </div>
           </div>
