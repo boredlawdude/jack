@@ -26,14 +26,14 @@ $userName = h($person['name'] ?? $person['email'] ?? 'Unknown User');
 
 <!-- ── User Card ──────────────────────────────────────────────────────────── -->
 <div class="row mb-4">
-    <div class="col-12">
-        <div class="card shadow-sm border-0">
-            <div class="card-body d-flex align-items-center gap-3">
+    <div class="col-12 col-lg-8">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body d-flex align-items-start gap-3">
                 <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0"
                      style="width:52px;height:52px;font-size:1.4rem;font-weight:600;">
                     <?= mb_strtoupper(mb_substr($person['name'] ?? $person['email'] ?? '?', 0, 1)) ?>
                 </div>
-                <div>
+                <div class="flex-grow-1">
                     <div class="fw-semibold fs-5"><?= $userName ?></div>
                     <?php if (!empty($userRoles)): ?>
                         <?php foreach ($userRoles as $r): ?>
@@ -51,6 +51,20 @@ $userName = h($person['name'] ?? $person['email'] ?? 'Unknown User');
                     <?php else: ?>
                         <span class="badge text-bg-secondary">No Role</span>
                     <?php endif; ?>
+
+                    <hr class="my-2">
+
+                    <p class="mb-1 small">
+                        <span class="fw-semibold text-warning">&#9888;</span>
+                        There are <strong><?= $pendingCount ?></strong> contract<?= $pendingCount !== 1 ? 's' : '' ?> that are still pending execution.
+                    </p>
+                    <p class="mb-0 small">
+                        <span class="fw-semibold text-danger">&#9888;</span>
+                        There are <strong><?= $staleCount ?></strong> contract<?= $staleCount !== 1 ? 's' : '' ?> that have been in drafting or negotiation for more than 5 days.
+                        <?php if ($staleCount > 0): ?>
+                            <span class="text-muted">(highlighted in red below)</span>
+                        <?php endif; ?>
+                    </p>
                 </div>
             </div>
         </div>
@@ -111,10 +125,11 @@ $userName = h($person['name'] ?? $person['email'] ?? 'Unknown User');
                     </thead>
                     <tbody>
                     <?php foreach ($contracts as $c): ?>
+                        <?php $isStale = isset($staleIds[(int)($c['contract_id'] ?? 0)]); ?>
                         <tr data-status-id="<?= (int)($c['contract_status_id'] ?? 0) ?>">
                             <td><?= h($c['contract_number'] ?? '') ?></td>
 
-                            <td class="fw-semibold"><?= h($c['name'] ?? '') ?></td>
+                            <td class="fw-semibold<?= $isStale ? ' text-danger' : '' ?>"><?= h($c['name'] ?? '') ?></td>
 
                             <td>
                                 <span class="badge text-bg-<?= dashboard_status_badge($c['status_name'] ?? '') ?>">
