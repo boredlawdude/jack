@@ -40,8 +40,8 @@ function determineOutcome(
         }
         return [
             'status'   => 'procurement_review',
-            'message'  => 'This appears to be a professional services procurement and should be routed through Procurement first.',
-            'next_url' => null,
+            'message'  => 'This appears to be a professional services procurement and should be routed through Procurement first. You may proceed with caution to the Contracts DB, however Procurement must sign off.',
+            'next_url' => '/login.php?next=' . urlencode('/index.php?page=contracts_create'),
         ];
     }
 
@@ -56,8 +56,8 @@ function determineOutcome(
         if ($biddingRequired && !$bidCompleted) {
             return [
                 'status'   => 'procurement_review',
-                'message'  => 'Bidding appears to be required. Complete the procurement process first, then return here if a contract is needed.',
-                'next_url' => null,
+                'message'  => 'Bidding appears to be required. Complete the procurement process first, then return here if a contract is needed. You may proceed with caution to the Contracts DB, however Procurement must sign off.',
+                'next_url' => '/login.php?next=' . urlencode('/index.php?page=contracts_create'),
             ];
         }
         return [
@@ -71,8 +71,8 @@ function determineOutcome(
         if ($biddingRequired && !$bidCompleted) {
             return [
                 'status'   => 'procurement_review',
-                'message'  => 'Construction/repair work requiring bidding must go through Procurement first.',
-                'next_url' => null,
+                'message'  => 'Construction/repair work requiring bidding must go through Procurement first. You may proceed with caution to the Contracts DB, however Procurement must sign off.',
+                'next_url' => '/login.php?next=' . urlencode('/index.php?page=contracts_create'),
             ];
         }
         return [
@@ -85,8 +85,8 @@ function determineOutcome(
     if ($biddingRequired && !$bidCompleted) {
         return [
             'status'   => 'procurement_review',
-            'message'  => 'Complete the required procurement/bid process first.',
-            'next_url' => null,
+            'message'  => 'Complete the required procurement/bid process first. You may proceed with caution to the Contracts DB, however Procurement must sign off.',
+            'next_url' => '/login.php?next=' . urlencode('/index.php?page=contracts_create'),
         ];
     }
 
