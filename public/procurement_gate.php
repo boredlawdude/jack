@@ -190,6 +190,10 @@ function determineOutcome(
     </form>
 
     <div id="gateResult" class="mt-4"></div>
+
+    <div class="text-center mt-4">
+        <a href="/login.php" class="text-muted small">Bypass to Contracts DB</a>
+    </div>
 </div>
 
 <script>
