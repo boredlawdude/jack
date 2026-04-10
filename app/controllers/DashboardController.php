@@ -48,7 +48,7 @@ class DashboardController
         $pendingStmt = $this->db->prepare(
             "SELECT COUNT(*) FROM contracts c
               LEFT JOIN contract_statuses cs ON cs.contract_status_id = c.contract_status_id
-              WHERE (c.end_date IS NULL OR c.end_date = '')
+              WHERE (c.end_date IS NULL OR c.end_date = '0000-00-00')
                 AND LOWER(COALESCE(cs.contract_status_name,'')) NOT IN ($exPlaceholders)"
         );
         $pendingStmt->execute($excludedStatuses);
