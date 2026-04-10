@@ -25,7 +25,7 @@ $userName = h($person['name'] ?? $person['email'] ?? 'Unknown User');
 ?>
 
 <!-- ── User Card ──────────────────────────────────────────────────────────── -->
-<div class="row mb-4">
+<div class="row mb-4 align-items-stretch">
     <div class="col-12 col-lg-8">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body d-flex align-items-start gap-3">
@@ -51,21 +51,28 @@ $userName = h($person['name'] ?? $person['email'] ?? 'Unknown User');
                     <?php else: ?>
                         <span class="badge text-bg-secondary">No Role</span>
                     <?php endif; ?>
-
-                    <hr class="my-2">
-
-                    <p class="mb-1 small">
-                        <span class="fw-semibold text-warning">&#9888;</span>
-                        There are <strong><?= $pendingCount ?></strong> contract<?= $pendingCount !== 1 ? 's' : '' ?> that are still pending execution.
-                    </p>
-                    <p class="mb-0 small">
-                        <span class="fw-semibold text-danger">&#9888;</span>
-                        There are <strong><?= $staleCount ?></strong> contract<?= $staleCount !== 1 ? 's' : '' ?> that have been in drafting or negotiation for more than 5 days.
-                        <?php if ($staleCount > 0): ?>
-                            <span class="text-muted">(highlighted in red below)</span>
-                        <?php endif; ?>
-                    </p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4 mt-3 mt-lg-0">
+        <div class="card shadow-sm border-warning h-100">
+            <div class="card-header bg-warning text-dark fw-semibold py-2">
+                &#9888; Delay Warning
+            </div>
+            <div class="card-body">
+                <p class="mb-2 small">
+                    <span class="fw-semibold text-warning">&#9888;</span>
+                    There are <strong><?= $pendingCount ?></strong> contract<?= $pendingCount !== 1 ? 's' : '' ?> still pending execution.
+                </p>
+                <p class="mb-0 small">
+                    <span class="fw-semibold text-danger">&#9888;</span>
+                    There are <strong><?= $staleCount ?></strong> contract<?= $staleCount !== 1 ? 's' : '' ?> that have been in drafting or negotiation for more than 5 days.
+                    <?php if ($staleCount > 0): ?>
+                        <span class="text-muted">(highlighted in red below)</span>
+                    <?php endif; ?>
+                </p>
             </div>
         </div>
     </div>
