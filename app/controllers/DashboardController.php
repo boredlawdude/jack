@@ -55,7 +55,6 @@ class DashboardController
         $pendingCount = (int)$pendingStmt->fetchColumn();
 
         // ── Stale-draft count + IDs ───────────────────────────────────────
-        // Status name LIKE 'draft%' or 'negotiat%', created_at > 5 days ago
         $staleStmt = $this->db->prepare(
             "SELECT c.contract_id FROM contracts c
               LEFT JOIN contract_statuses cs ON cs.contract_status_id = c.contract_status_id
@@ -69,12 +68,43 @@ class DashboardController
         $staleIds = array_flip($staleStmt->fetchAll(PDO::FETCH_COLUMN));
         $staleCount = count($staleIds);
 
+        // ── Review-phase count ────────────────────────────────────────────
+        $reviewStatuses = ['procurement review', 'legal review', 'dept review', 'manager review'];
+        $rvPlaceholders = implode(',', array_fill(0, count($reviewStatuses), '?'));
+        $reviewStmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM contracts c
+              LEFT JOIN contract_statuses cs ON cs.contract_status_id = c.contract_status_id
+              WHERE LOWER(COALESCE(cs.contract_status_name,'')) IN ($rvPlaceholders)"
+        );
+        $reviewStmt->execute($reviewStatuses);
+        $reviewCount = (int)$reviewStmt->fetchColumn();
+
+        // ── Town Council count ────────────────────────────────────────────
+        $tcStatuses = ['town council', 'town council review'];
+        $tcPlaceholders = implode(',', array_fill(0, count($tcStatuses), '?'));
+        $tcStmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM contracts c
+              LEFT JOIN contract_statuses cs ON cs.contract_status_id = c.contract_status_id
+              WHERE LOWER(COALESCE(cs.contract_status_name,'')) IN ($tcPlaceholders)"
+        );
+        $tcStmt->execute($tcStatuses);
+        $townCouncilCount = (int)$tcStmt->fetchColumn();
+
+        // ── Out for signature count ───────────────────────────────────────
+        $sigStmt = $this->db->prepare(
+            "SELECT COUNT(*) FROM contracts c
+              LEFT JOIN contract_statuses cs ON cs.contract_status_id = c.contract_status_id
+              WHERE LOWER(COALESCE(cs.contract_status_name,'')) = 'out for signature'"
+        );
+        $sigStmt->execute();
+        $outForSignatureCount = (int)$sigStmt->fetchColumn();
+
         // All statuses for radio filter
         $statuses = $this->statusModel->all();
 
         // All contracts (unfiltered); JS handles client-side filtering
         $contracts = $this->contractModel->search([]);
 
-        require APP_ROOT . '/app/views/dashboard/index.php';
+        require APP_ROOT . '/app/views/dashboard/index.php'; // $staleCount, $staleIds, $pendingCount, $reviewCount, $townCouncilCount, $outForSignatureCount passed via scope
     }
 }

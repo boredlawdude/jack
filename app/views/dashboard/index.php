@@ -63,15 +63,27 @@ $userName = h($person['name'] ?? $person['email'] ?? 'Unknown User');
             </div>
             <div class="card-body">
                 <p class="mb-2 small">
-                    <span class="fw-semibold text-warning">&#9888;</span>
-                    There are <strong><?= $pendingCount ?></strong> contract<?= $pendingCount !== 1 ? 's' : '' ?> still pending execution.
-                </p>
-                <p class="mb-0 small">
                     <span class="fw-semibold text-danger">&#9888;</span>
                     There are <strong><?= $staleCount ?></strong> contract<?= $staleCount !== 1 ? 's' : '' ?> that have been in drafting or negotiation for more than 5 days.
                     <?php if ($staleCount > 0): ?>
                         <span class="text-muted">(highlighted in red below)</span>
                     <?php endif; ?>
+                </p>
+                <p class="mb-2 small">
+                    <span class="fw-semibold text-warning">&#9888;</span>
+                    There are <strong><?= $pendingCount ?></strong> contract<?= $pendingCount !== 1 ? 's' : '' ?> still pending execution.
+                </p>
+                <p class="mb-2 small">
+                    <span class="fw-semibold text-info">&#9432;</span>
+                    There are <strong><?= $reviewCount ?></strong> contract<?= $reviewCount !== 1 ? 's' : '' ?> currently in the Review Phase.
+                </p>
+                <p class="mb-2 small">
+                    <span class="fw-semibold text-primary">&#9432;</span>
+                    There are <strong><?= $townCouncilCount ?></strong> contract<?= $townCouncilCount !== 1 ? 's' : '' ?> waiting for Town Council approval.
+                </p>
+                <p class="mb-0 small">
+                    <span class="fw-semibold text-secondary">&#9432;</span>
+                    There are <strong><?= $outForSignatureCount ?></strong> contract<?= $outForSignatureCount !== 1 ? 's' : '' ?> currently out for signature.
                 </p>
             </div>
         </div>
