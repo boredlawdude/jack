@@ -15,6 +15,7 @@ require_once APP_ROOT . '/app/controllers/BiddingComplianceController.php';
 require_once APP_ROOT . '/app/controllers/DocuSignController.php';
 require_once APP_ROOT . '/app/controllers/DashboardController.php';
 require_once APP_ROOT . '/app/controllers/RolesController.php';
+require_once APP_ROOT . '/app/controllers/DevelopmentAgreementsController.php';
 
 $companiesController = new CompaniesController();
 $PeopleController = new PeopleController();
@@ -232,6 +233,15 @@ case 'departments_store':
         }
         break;
 
+    case 'contract_history_delete':
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $ContractsController->deleteHistoryNote();
+        } else {
+            http_response_code(405);
+            echo 'Method not allowed.';
+        }
+        break;
+
     case 'contract_document_delete':
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ContractsController->deleteDocument();
@@ -338,6 +348,35 @@ case 'departments_store':
         } else {
             http_response_code(405);
         }
+        break;
+
+    // ── Development Agreements ──────────────────────────────────────────
+    case 'development_agreements':
+        (new DevelopmentAgreementsController())->index();
+        break;
+
+    case 'development_agreements_create':
+        (new DevelopmentAgreementsController())->create();
+        break;
+
+    case 'development_agreements_store':
+        (new DevelopmentAgreementsController())->store();
+        break;
+
+    case 'development_agreements_show':
+        (new DevelopmentAgreementsController())->show();
+        break;
+
+    case 'development_agreements_edit':
+        (new DevelopmentAgreementsController())->edit();
+        break;
+
+    case 'development_agreements_update':
+        (new DevelopmentAgreementsController())->update();
+        break;
+
+    case 'development_agreements_delete':
+        (new DevelopmentAgreementsController())->delete();
         break;
 
     default:

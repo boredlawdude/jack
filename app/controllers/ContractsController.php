@@ -556,6 +556,42 @@ class ContractsController
         exit;
     }
 
+    public function deleteHistoryNote(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo 'Method not allowed.';
+            return;
+        }
+
+        if (!is_system_admin()) {
+            http_response_code(403);
+            echo 'Access denied.';
+            return;
+        }
+
+        $contractId  = (int)($_POST['contract_id'] ?? 0);
+        $rawIds      = $_POST['history_ids'] ?? [];
+
+        if ($contractId <= 0 || !is_array($rawIds) || empty($rawIds)) {
+            header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
+            exit;
+        }
+
+        $ids = array_filter(array_map('intval', $rawIds), fn($id) => $id > 0);
+        if (!empty($ids)) {
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $params = array_merge($ids, [$contractId]);
+            $stmt = $this->db->prepare(
+                "DELETE FROM contract_status_history WHERE history_id IN ($placeholders) AND contract_id = ?"
+            );
+            $stmt->execute($params);
+        }
+
+        header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
+        exit;
+    }
+
     /**
      * Save sort order for contract documents
      */

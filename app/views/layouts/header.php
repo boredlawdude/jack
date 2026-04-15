@@ -53,6 +53,7 @@ declare(strict_types=1);
         <li class="nav-item"><a class="nav-link" href="/index.php?page=dashboard">Dashboard</a></li>
         <li class="nav-item"><a class="nav-link" href="/index.php?page=contracts">Contracts</a></li>
         <li class="nav-item"><a class="nav-link" href="/index.php?page=contracts_create">New Contract</a></li>
+        <li class="nav-item"><a class="nav-link" href="/index.php?page=development_agreements">Dev Agreements</a></li>
 
         <li class="nav-item"><a class="nav-link" href="/index.php?page=companies">Companies</a></li>
         <li class="nav-item"><a class="nav-link" href="/index.php?page=companies_create">New Company</a></li>

@@ -238,6 +238,21 @@ $status         = trim((string)($contract['status_name'] ?? ''));
           </div>
         </div>
         <div class="card-body p-0">
+          <?php if (!empty($_SESSION['flash_success'])): ?>
+            <div class="alert alert-success m-2"><?= h($_SESSION['flash_success']) ?></div>
+            <?php unset($_SESSION['flash_success']); ?>
+          <?php endif; ?>
+          <?php if (!empty($_SESSION['flash_errors'])): ?>
+            <div class="alert alert-warning m-2">
+              <strong>Some documents could not be converted:</strong>
+              <ul class="mb-0 mt-1">
+                <?php foreach ((array)$_SESSION['flash_errors'] as $fe): ?>
+                  <li><?= h($fe) ?></li>
+                <?php endforeach; ?>
+              </ul>
+            </div>
+            <?php unset($_SESSION['flash_errors']); ?>
+          <?php endif; ?>
           <?php if (!empty($_SESSION['docusign_flash_success'])): ?>
             <div class="alert alert-success m-2"><?= h($_SESSION['docusign_flash_success']) ?></div>
             <?php unset($_SESSION['docusign_flash_success']); ?>
@@ -274,16 +289,7 @@ $status         = trim((string)($contract['status_name'] ?? ''));
                       <td><?= !empty($doc['file_name']) ? h($doc['file_name']) : '—' ?></td>
                       <td><?= !empty($doc['doc_type']) ? h($doc['doc_type']) : '—' ?></td>
                       <td>
-                        <?php
-                          $defaultLabel = $doc['exhibit_label'] ?? null;
-                          if ($defaultLabel === null || $defaultLabel === '') {
-                            $defaultLabel = $doc['doc_type'] ?? '';
-                            if (!empty($doc['description'])) {
-                              $defaultLabel .= ' - ' . $doc['description'];
-                            }
-                          }
-                        ?>
-                        <input type="text" name="exhibit_label[<?= (int)$doc['contract_document_id'] ?>]" value="<?= h($defaultLabel) ?>" class="form-control form-control-sm" style="width:140px" maxlength="50" placeholder="no stamp">
+                        <input type="text" name="exhibit_label[<?= (int)$doc['contract_document_id'] ?>]" value="<?= h($doc['exhibit_label'] ?? '') ?>" class="form-control form-control-sm" style="width:140px" maxlength="50" placeholder="no stamp">
                       </td>
                       <td><?= !empty($doc['description']) ? h($doc['description']) : '—' ?></td>
                       <td>
@@ -479,10 +485,21 @@ $status         = trim((string)($contract['status_name'] ?? ''));
           </form>
         </div>
         <?php if (!empty($history)): ?>
+          <?php $canDeleteHistory = function_exists('is_system_admin') && is_system_admin(); ?>
+          <?php if ($canDeleteHistory): ?>
+          <form method="post" action="/index.php?page=contract_history_delete" id="historyDeleteForm">
+            <input type="hidden" name="contract_id" value="<?= (int)$contract['contract_id'] ?>">
+          <?php endif; ?>
           <div class="table-responsive">
             <table class="table table-sm table-hover mb-0">
               <thead class="table-light">
                 <tr>
+                  <?php if ($canDeleteHistory): ?>
+                  <th style="width:36px">
+                    <input type="checkbox" id="historySelectAll" title="Select all"
+                           onclick="document.querySelectorAll('.history-cb').forEach(cb => cb.checked = this.checked)">
+                  </th>
+                  <?php endif; ?>
                   <th>Date</th>
                   <th>Event</th>
                   <th>Details</th>
@@ -492,6 +509,9 @@ $status         = trim((string)($contract['status_name'] ?? ''));
               <tbody>
                 <?php foreach ($history as $entry): ?>
                   <tr>
+                    <?php if ($canDeleteHistory): ?>
+                    <td><input type="checkbox" class="history-cb" name="history_ids[]" value="<?= (int)$entry['history_id'] ?>"></td>
+                    <?php endif; ?>
                     <td class="text-nowrap"><?= date('m/d/y H:i', strtotime($entry['changed_at'])) ?></td>
                     <td>
                       <?php
@@ -521,6 +541,17 @@ $status         = trim((string)($contract['status_name'] ?? ''));
               </tbody>
             </table>
           </div>
+          <?php if ($canDeleteHistory): ?>
+          <div class="p-2 border-top">
+            <button type="submit" form="historyDeleteForm" class="btn btn-sm btn-danger"
+                    onclick="
+                      var checked = document.querySelectorAll('.history-cb:checked');
+                      if (checked.length === 0) { alert('No entries selected.'); return false; }
+                      return confirm('Delete ' + checked.length + ' selected entr' + (checked.length === 1 ? 'y' : 'ies') + '?');
+                    ">Delete Selected</button>
+          </div>
+          </form>
+          <?php endif; ?>
         <?php else: ?>
           <div class="p-3 text-muted">No history recorded yet.</div>
         <?php endif; ?>

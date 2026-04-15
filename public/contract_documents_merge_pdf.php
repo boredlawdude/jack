@@ -34,6 +34,7 @@ $docsStmt = $db->prepare(
     "SELECT contract_document_id, file_path, file_name, mime_type, exhibit_label, doc_type, description
      FROM contract_documents
      WHERE contract_id = ?
+       AND NOT (doc_type = 'pdf' AND description = 'Merged PDF of all documents')
      ORDER BY sort_order ASC, created_at ASC"
 );
 $docsStmt->execute([$contractId]);
@@ -112,6 +113,32 @@ function findChromeBinary(): ?string
     return null;
 }
 
+/**
+ * Run a shell command capturing output and exit code.
+ * Falls back to shell_exec() with exit-code injection if exec() is disabled.
+ */
+function safeExec(string $cmd, &$output, &$exitCode): void
+{
+    $output   = [];
+    $exitCode = 1;
+    if (function_exists('exec') && is_callable('exec')) {
+        exec($cmd, $output, $exitCode);
+        return;
+    }
+    // exec() disabled – use shell_exec with exit-code sentinel
+    $sentinel = '__MERGE_EXIT_CODE__';
+    $raw = shell_exec($cmd . '; echo "' . $sentinel . ':$?"') ?? '';
+    $lines = array_filter(explode("\n", $raw));
+    foreach (array_reverse(array_values($lines)) as $line) {
+        if (preg_match('/^' . preg_quote($sentinel, '/') . ':(\d+)$/', trim($line), $m)) {
+            $exitCode = (int)$m[1];
+            $lines = array_diff($lines, [$line]);
+            break;
+        }
+    }
+    $output = array_values($lines);
+}
+
 // Print HTML to PDF using Chrome headless
 function chromePrintToPdf(string $htmlFilePath): ?string
 {
@@ -129,7 +156,7 @@ function chromePrintToPdf(string $htmlFilePath): ?string
          . ' ' . escapeshellarg('file://' . $htmlFilePath)
          . ' 2>&1';
 
-    exec($cmd, $output, $exitCode);
+    safeExec($cmd, $output, $exitCode);
 
     if ($exitCode === 0 && is_file($tmpPdf) && filesize($tmpPdf) > 0) {
         return $tmpPdf;
@@ -139,7 +166,7 @@ function chromePrintToPdf(string $htmlFilePath): ?string
 }
 
 // Convert DOCX to PDF via LibreOffice (most reliable on Linux servers)
-function docxToPdfViaLibreOffice(string $docxPath): ?string
+function docxToPdfViaLibreOffice(string $docxPath, string &$errorMsg = ''): ?string
 {
     $lo = trim(shell_exec('which libreoffice 2>/dev/null || which soffice 2>/dev/null') ?? '');
     if ($lo === '' || !is_file($lo)) {
@@ -160,7 +187,7 @@ function docxToPdfViaLibreOffice(string $docxPath): ?string
          . ' --outdir ' . escapeshellarg($tmpDir)
          . ' ' . escapeshellarg(realpath($docxPath))
          . ' 2>&1';
-    exec($cmd, $out, $exit);
+    safeExec($cmd, $out, $exit);
 
     $base    = pathinfo($docxPath, PATHINFO_FILENAME);
     $outFile = $tmpDir . '/' . $base . '.pdf';
@@ -169,7 +196,8 @@ function docxToPdfViaLibreOffice(string $docxPath): ?string
         shell_exec('rm -rf ' . escapeshellarg($profileDir));
         return $outFile;
     }
-    error_log('LibreOffice DOCX→PDF failed (exit=' . $exit . '): ' . implode("\n", $out));
+    $errorMsg = 'LibreOffice exit=' . $exit . ': ' . trim(implode(' | ', array_filter($out)));
+    error_log('LibreOffice DOCX→PDF failed (' . $errorMsg . ')');
     shell_exec('rm -rf ' . escapeshellarg($profileDir) . ' ' . escapeshellarg($tmpDir));
     return null;
 }
@@ -190,7 +218,7 @@ function docxToPdf(string $docxPath): ?string
     }
     $tmpHtml = tempnam(sys_get_temp_dir(), 'docx_html_') . '.html';
     $pandocCmd = escapeshellarg($pandoc) . ' ' . escapeshellarg($absDocx) . ' --standalone -o ' . escapeshellarg($tmpHtml) . ' 2>&1';
-    exec($pandocCmd, $pandocOut, $pandocExit);
+    safeExec($pandocCmd, $pandocOut, $pandocExit);
     if ($pandocExit !== 0 || !is_file($tmpHtml) || filesize($tmpHtml) === 0) {
         error_log('Merge PDF: Pandoc failed (exit=' . $pandocExit . '): ' . implode("\n", $pandocOut));
         @unlink($tmpHtml);
@@ -262,6 +290,28 @@ function textToPdf(string $textPath): ?string
     return $result;
 }
 
+/**
+ * Strip PDF owner-password encryption using qpdf so FPDI can import the file.
+ * Returns the path to a decrypted temp copy, or the original path if qpdf isn't
+ * available or the file decrypts to nothing.
+ */
+function decryptPdfIfNeeded(string $pdfPath): string
+{
+    $qpdf = trim(shell_exec('which qpdf 2>/dev/null') ?? '');
+    if ($qpdf === '' || !is_file($qpdf)) {
+        return $pdfPath;
+    }
+    $tmpPdf = tempnam(sys_get_temp_dir(), 'fpdi_dec_') . '.pdf';
+    $cmd = escapeshellarg($qpdf) . ' --decrypt '
+         . escapeshellarg($pdfPath) . ' ' . escapeshellarg($tmpPdf) . ' 2>/dev/null';
+    shell_exec($cmd);
+    if (is_file($tmpPdf) && filesize($tmpPdf) > 0) {
+        return $tmpPdf;
+    }
+    @unlink($tmpPdf);
+    return $pdfPath;
+}
+
 // Generate exhibit label: 0→A, 1→B, … 25→Z, 26→AA, etc.
 function getExhibitLabel(int $index): string
 {
@@ -301,15 +351,21 @@ foreach ($documents as $doc) {
 
     try {
         if ($ext === 'pdf') {
-            $pdfFiles[] = ['path' => $filePath, 'exhibit_label' => $docLabel];
+            $decryptedPath = decryptPdfIfNeeded($filePath);
+            if ($decryptedPath !== $filePath) {
+                $tempFiles[] = $decryptedPath;
+            }
+            $pdfFiles[] = ['path' => $decryptedPath, 'exhibit_label' => $docLabel];
         } elseif ($ext === 'docx') {
             // Try LibreOffice first (most reliable on Linux), then Pandoc+Chrome
-            $converted = docxToPdfViaLibreOffice($filePath) ?? docxToPdf($filePath);
+            $loError = '';
+            $converted = docxToPdfViaLibreOffice($filePath, $loError) ?? docxToPdf($filePath);
             if ($converted) {
                 $pdfFiles[] = ['path' => $converted, 'exhibit_label' => $docLabel];
                 $tempFiles[] = $converted;
             } else {
-                $errors[] = 'Could not convert: ' . $doc['file_name'];
+                $detail = $loError ? ' (' . $loError . ')' : '';
+                $errors[] = 'Could not convert: ' . $doc['file_name'] . $detail;
             }
         } elseif (in_array($ext, ['html', 'htm'], true)) {
             $converted = htmlFileToPdf($filePath);
@@ -336,12 +392,29 @@ foreach ($documents as $doc) {
 }
 
 if (empty($pdfFiles)) {
-    $msg = 'No documents could be converted to PDF.';
+    http_response_code(500);
+    echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Merge Error</title>';
+    echo '<link rel="stylesheet" href="/assets/bootstrap/css/bootstrap.min.css">';
+    echo '</head><body class="p-4">';
+    echo '<h4 class="text-danger">No documents could be converted to PDF</h4>';
     if ($errors) {
-        $msg .= ' ' . implode('; ', $errors);
+        echo '<ul>';
+        foreach ($errors as $e) {
+            echo '<li>' . htmlspecialchars($e) . '</li>';
+        }
+        echo '</ul>';
     }
-    $_SESSION['flash_errors'] = [$msg];
-    header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
+    // Diagnostic info
+    echo '<hr><small class="text-muted">';
+    echo 'exec() available: ' . (function_exists('exec') && is_callable('exec') ? 'yes' : '<strong>NO</strong>') . '<br>';
+    echo 'shell_exec() available: ' . (function_exists('shell_exec') && is_callable('shell_exec') ? 'yes' : '<strong>NO</strong>') . '<br>';
+    $loPath = trim(shell_exec('which libreoffice 2>/dev/null || which soffice 2>/dev/null') ?? '');
+    echo 'LibreOffice: ' . htmlspecialchars($loPath ?: 'not found') . '<br>';
+    $chromePath = trim(shell_exec('which google-chrome 2>/dev/null || which chromium-browser 2>/dev/null || which chromium 2>/dev/null') ?? '');
+    echo 'Chrome/Chromium: ' . htmlspecialchars($chromePath ?: 'not found') . '<br>';
+    echo '</small>';
+    echo '<a href="/index.php?page=contracts_show&contract_id=' . $contractId . '" class="btn btn-secondary mt-3">Back to Contract</a>';
+    echo '</body></html>';
     exit;
 }
 
