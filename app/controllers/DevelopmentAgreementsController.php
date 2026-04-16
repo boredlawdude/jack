@@ -174,7 +174,13 @@ class DevelopmentAgreementsController
         $this->model->update($id, $data);
 
         // Sync tracts (replace all)
-        $this->saveTracts($id, $_POST['tracts'] ?? []);
+        try {
+            $this->saveTracts($id, $_POST['tracts'] ?? []);
+        } catch (Throwable $e) {
+            $_SESSION['flash_errors'] = ['Tract save error: ' . $e->getMessage()];
+            header('Location: /index.php?page=development_agreements_edit&dev_agreement_id=' . $id);
+            exit;
+        }
 
         // Keep linked contract name in sync with project_name
         $agreement = $this->model->find($id);

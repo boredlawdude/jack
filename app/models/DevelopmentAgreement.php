@@ -124,6 +124,7 @@ class DevelopmentAgreement
         ");
         // Note: contract_id is not updated after initial creation
         $params = $this->bindParams($data);
+        unset($params[':contract_id']); // not in UPDATE SQL
         $params[':id'] = $id;
         $stmt->execute($params);
     }

@@ -287,7 +287,6 @@ function removeTract(btn) {
   if (document.querySelectorAll('.tract-row').length <= 1) {
     // Just clear the fields instead of removing
     row.querySelectorAll('input[type=text], input[type=number]').forEach(i => i.value = '');
-    row.querySelector('select').value = '';
     return;
   }
   row.remove();
