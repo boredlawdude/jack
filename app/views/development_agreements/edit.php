@@ -93,35 +93,92 @@ $v = fn($field) => h($agreement[$field] ?? '');
       </div>
     </div>
 
-    <!-- Property -->
-    <h6 class="text-muted text-uppercase fw-semibold mb-3 border-bottom pb-1">Property</h6>
+    <!-- Property / Tracts -->
+    <h6 class="text-muted text-uppercase fw-semibold mb-3 border-bottom pb-1">Property Tracts</h6>
+    <p class="text-muted small mb-3">Add one or more parcels. Enter a Wake County PIN and click <strong>Lookup</strong> to auto-fill the address, acreage, and real estate ID from IMAPS.</p>
+
+    <div id="tracts-container">
+      <?php
+        // Render existing tracts (edit mode) or one blank row (create mode)
+        $existingTracts = $agreement['tracts'] ?? [];
+        if (empty($existingTracts)) {
+            $existingTracts = [['tract_id' => '', 'property_pin' => '', 'property_realestateid' => '', 'property_address' => '', 'property_acerage' => '', 'property_owner_id' => '', 'sort_order' => 0]];
+        }
+      ?>
+      <?php foreach ($existingTracts as $ti => $tract): ?>
+      <div class="tract-row card mb-2 border" data-index="<?= $ti ?>">
+        <div class="card-body p-3">
+          <input type="hidden" name="tracts[<?= $ti ?>][tract_id]" value="<?= h($tract['tract_id'] ?? '') ?>">
+          <div class="row g-2 align-items-end">
+            <!-- PIN + Lookup -->
+            <div class="col-md-2">
+              <label class="form-label form-label-sm mb-1">PIN</label>
+              <div class="input-group input-group-sm">
+                <input type="text" class="form-control tract-pin" name="tracts[<?= $ti ?>][property_pin]"
+                       value="<?= h($tract['property_pin'] ?? '') ?>" maxlength="15" placeholder="digits only">
+                <button type="button" class="btn btn-outline-primary tract-lookup-btn"
+                        onclick="lookupTractPin(this)" title="Lookup from Wake County IMAPS">Lookup</button>
+              </div>
+              <div class="tract-status form-text"></div>
+            </div>
+            <!-- Real Estate ID -->
+            <div class="col-md-2">
+              <label class="form-label form-label-sm mb-1">Real Estate ID</label>
+              <input type="text" class="form-control form-control-sm tract-reid" name="tracts[<?= $ti ?>][property_realestateid]"
+                     value="<?= h($tract['property_realestateid'] ?? '') ?>" maxlength="50">
+            </div>
+            <!-- Address -->
+            <div class="col-md-3">
+              <label class="form-label form-label-sm mb-1">Property Address</label>
+              <input type="text" class="form-control form-control-sm tract-address" name="tracts[<?= $ti ?>][property_address]"
+                     value="<?= h($tract['property_address'] ?? '') ?>">
+            </div>
+            <!-- Acreage -->
+            <div class="col-md-1">
+              <label class="form-label form-label-sm mb-1">Acres</label>
+              <input type="number" step="0.0001" min="0" class="form-control form-control-sm tract-acreage"
+                     name="tracts[<?= $ti ?>][property_acerage]"
+                     value="<?= h($tract['property_acerage'] ?? '') ?>">
+            </div>
+            <!-- Property Owner -->
+            <div class="col-md-3">
+              <label class="form-label form-label-sm mb-1">Property Owner</label>
+              <select class="form-select form-select-sm" name="tracts[<?= $ti ?>][property_owner_id]">
+                <option value="">— Select —</option>
+                <?php foreach ($people as $p): ?>
+                  <option value="<?= (int)$p['person_id'] ?>"
+                    <?= ((string)($tract['property_owner_id'] ?? '') === (string)$p['person_id']) ? 'selected' : '' ?>>
+                    <?= h($p['full_name']) ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </div>
+            <!-- Sort Order + Remove -->
+            <div class="col-md-1">
+              <label class="form-label form-label-sm mb-1">Order</label>
+              <input type="number" class="form-control form-control-sm" name="tracts[<?= $ti ?>][sort_order]"
+                     value="<?= (int)($tract['sort_order'] ?? 0) ?>" min="0" style="width:60px">
+            </div>
+            <div class="col-auto d-flex align-items-end pb-1">
+              <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeTract(this)" title="Remove this tract">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+
+    <button type="button" class="btn btn-outline-secondary btn-sm mb-4" onclick="addTract()">+ Add Another Tract</button>
+
+    <!-- Zoning -->
+    <h6 class="text-muted text-uppercase fw-semibold mb-3 border-bottom pb-1">Zoning</h6>
     <div class="row g-3 mb-4">
-      <div class="col-md-6">
-        <label class="form-label" for="property_address">Property Address</label>
-        <input class="form-control" type="text" id="property_address" name="property_address"
-               value="<?= $v('property_address') ?>">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label" for="property_pin">Property PIN</label>
-        <input class="form-control" type="text" id="property_pin" name="property_pin"
-               value="<?= $v('property_pin') ?>">
-      </div>
-      <div class="col-md-3">
-        <label class="form-label" for="property_realestateid">Real Estate ID</label>
-        <input class="form-control" type="text" id="property_realestateid" name="property_realestateid"
-               value="<?= $v('property_realestateid') ?>">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label" for="property_acerage">Acreage</label>
-        <input class="form-control" type="number" step="0.0001" min="0" id="property_acerage" name="property_acerage"
-               value="<?= $v('property_acerage') ?>">
-      </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="current_zoning">Current Zoning</label>
         <input class="form-control" type="text" id="current_zoning" name="current_zoning"
                value="<?= $v('current_zoning') ?>">
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label" for="proposed_zoning">Proposed Zoning</label>
         <input class="form-control" type="text" id="proposed_zoning" name="proposed_zoning"
                value="<?= $v('proposed_zoning') ?>">
@@ -170,3 +227,137 @@ $v = fn($field) => h($agreement[$field] ?? '');
     <a href="/index.php?page=development_agreements" class="btn btn-outline-secondary">Cancel</a>
   </div>
 </form>
+
+<script>
+// ── Tract row template (used by addTract()) ───────────────────────────────
+function nextTractIndex() {
+  return document.querySelectorAll('.tract-row').length;
+}
+
+function buildTractRowHtml(idx) {
+  const peopleOptions = <?php
+    $opts = '<option value="">— Select —<\/option>';
+    foreach ($people as $p) {
+        $opts .= '<option value="' . (int)$p['person_id'] . '">' . htmlspecialchars($p['full_name'], ENT_QUOTES, 'UTF-8') . '<\/option>';
+    }
+    echo json_encode($opts);
+  ?>;
+  return `
+    <div class="tract-row card mb-2 border" data-index="${idx}">
+      <div class="card-body p-3">
+        <input type="hidden" name="tracts[${idx}][tract_id]" value="">
+        <div class="row g-2 align-items-end">
+          <div class="col-md-2">
+            <label class="form-label form-label-sm mb-1">PIN</label>
+            <div class="input-group input-group-sm">
+              <input type="text" class="form-control tract-pin" name="tracts[${idx}][property_pin]"
+                     maxlength="15" placeholder="digits only">
+              <button type="button" class="btn btn-outline-primary tract-lookup-btn"
+                      onclick="lookupTractPin(this)" title="Lookup from Wake County IMAPS">Lookup</button>
+            </div>
+            <div class="tract-status form-text"></div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label form-label-sm mb-1">Real Estate ID</label>
+            <input type="text" class="form-control form-control-sm tract-reid" name="tracts[${idx}][property_realestateid]" maxlength="50">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Property Address</label>
+            <input type="text" class="form-control form-control-sm tract-address" name="tracts[${idx}][property_address]">
+          </div>
+          <div class="col-md-1">
+            <label class="form-label form-label-sm mb-1">Acres</label>
+            <input type="number" step="0.0001" min="0" class="form-control form-control-sm tract-acreage" name="tracts[${idx}][property_acerage]">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label form-label-sm mb-1">Property Owner</label>
+            <select class="form-select form-select-sm" name="tracts[${idx}][property_owner_id]">
+              ${peopleOptions}
+            </select>
+          </div>
+          <div class="col-md-1">
+            <label class="form-label form-label-sm mb-1">Order</label>
+            <input type="number" class="form-control form-control-sm" name="tracts[${idx}][sort_order]" value="0" min="0" style="width:60px">
+          </div>
+          <div class="col-auto d-flex align-items-end pb-1">
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeTract(this)" title="Remove">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function addTract() {
+  const container = document.getElementById('tracts-container');
+  const idx = nextTractIndex();
+  container.insertAdjacentHTML('beforeend', buildTractRowHtml(idx));
+}
+
+function removeTract(btn) {
+  const row = btn.closest('.tract-row');
+  // Only remove if there's more than one row
+  if (document.querySelectorAll('.tract-row').length <= 1) {
+    // Just clear the fields instead of removing
+    row.querySelectorAll('input[type=text], input[type=number]').forEach(i => i.value = '');
+    row.querySelector('select').value = '';
+    return;
+  }
+  row.remove();
+  reindexTracts();
+}
+
+function reindexTracts() {
+  document.querySelectorAll('.tract-row').forEach((row, idx) => {
+    row.dataset.index = idx;
+    row.querySelectorAll('[name]').forEach(el => {
+      el.name = el.name.replace(/tracts\[\d+\]/, `tracts[${idx}]`);
+    });
+  });
+}
+
+// ── IMAPS PIN Lookup ─────────────────────────────────────────────────────────
+async function lookupTractPin(btn) {
+  const row     = btn.closest('.tract-row');
+  const pinEl   = row.querySelector('.tract-pin');
+  const statusEl = row.querySelector('.tract-status');
+  const pin     = pinEl.value.trim();
+
+  if (!pin || !/^\d{1,15}$/.test(pin)) {
+    statusEl.className = 'tract-status form-text text-danger';
+    statusEl.textContent = 'Enter a numeric PIN first.';
+    return;
+  }
+
+  btn.disabled    = true;
+  btn.textContent = '…';
+  statusEl.className   = 'tract-status form-text';
+  statusEl.textContent = 'Looking up…';
+
+  try {
+    const res  = await fetch('/devagr_imaps_lookup.php?pin=' + encodeURIComponent(pin));
+    const data = await res.json();
+
+    if (data.error) {
+      statusEl.className   = 'tract-status form-text text-danger';
+      statusEl.textContent = data.error;
+      return;
+    }
+
+    row.querySelector('.tract-reid').value    = data.property_realestateid ?? '';
+    row.querySelector('.tract-address').value = data.property_address      ?? '';
+    if (data.property_acerage != null) {
+      row.querySelector('.tract-acreage').value = data.property_acerage;
+    }
+
+    statusEl.className   = 'tract-status form-text text-success';
+    statusEl.textContent = '✓ Filled from Wake County GIS.'
+      + (data.owner_name_display ? ' Owner on record: ' + data.owner_name_display + ' — select from the list above.' : '');
+  } catch {
+    statusEl.className   = 'tract-status form-text text-danger';
+    statusEl.textContent = 'Request failed — check internet connection.';
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Lookup';
+  }
+}
+</script>

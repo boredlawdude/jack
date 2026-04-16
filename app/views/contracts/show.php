@@ -177,22 +177,38 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
         </div>
         <div class="card-body">
           <div class="row g-3">
-            <div class="col-md-12">
-              <div class="small text-muted">Property Address</div>
-              <div><?= h($devAgreement['property_address'] ?? '') ?: '—' ?></div>
+            <!-- Tracts table -->
+            <div class="col-12">
+              <?php if (!empty($devAgreementTracts)): ?>
+              <table class="table table-sm table-bordered mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="text-center" style="width:2.5rem">#</th>
+                    <th>PIN</th>
+                    <th>Real Estate ID</th>
+                    <th>Address</th>
+                    <th>Acres</th>
+                    <th>Property Owner</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <?php foreach ($devAgreementTracts as $i => $tract): ?>
+                  <tr>
+                    <td class="text-center text-muted"><?= $i + 1 ?></td>
+                    <td><?= h($tract['property_pin'] ?? '') ?: '—' ?></td>
+                    <td><?= h($tract['property_realestateid'] ?? '') ?: '—' ?></td>
+                    <td><?= h($tract['property_address'] ?? '') ?: '—' ?></td>
+                    <td><?= h($tract['property_acerage'] ?? '') ?: '—' ?></td>
+                    <td><?= h($tract['owner_name'] ?? '') ?: '—' ?></td>
+                  </tr>
+                  <?php endforeach; ?>
+                </tbody>
+              </table>
+              <?php else: ?>
+              <span class="text-muted fst-italic">No tracts added yet.</span>
+              <?php endif; ?>
             </div>
-            <div class="col-md-4">
-              <div class="small text-muted">Parcel PIN</div>
-              <div><?= h($devAgreement['property_pin'] ?? '') ?: '—' ?></div>
-            </div>
-            <div class="col-md-4">
-              <div class="small text-muted">Real Estate ID</div>
-              <div><?= h($devAgreement['property_realestateid'] ?? '') ?: '—' ?></div>
-            </div>
-            <div class="col-md-4">
-              <div class="small text-muted">Acreage</div>
-              <div><?= h($devAgreement['property_acerage'] ?? '') ?: '—' ?></div>
-            </div>
+            <!-- Zoning -->
             <div class="col-md-4">
               <div class="small text-muted">Current Zoning</div>
               <div><?= h($devAgreement['current_zoning'] ?? '') ?: '—' ?></div>

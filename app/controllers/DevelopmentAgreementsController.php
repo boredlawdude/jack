@@ -1,18 +1,21 @@
 <?php
 declare(strict_types=1);
 require_once APP_ROOT . '/app/models/DevelopmentAgreement.php';
+require_once APP_ROOT . '/app/models/DevelopmentAgreementTract.php';
 require_once APP_ROOT . '/app/models/Contract.php';
 
 class DevelopmentAgreementsController
 {
     private PDO $db;
     private DevelopmentAgreement $model;
+    private DevelopmentAgreementTract $tracts;
     private Contract $contracts;
 
     public function __construct()
     {
         $this->db        = db();
         $this->model     = new DevelopmentAgreement($this->db);
+        $this->tracts    = new DevelopmentAgreementTract($this->db);
         $this->contracts = new Contract($this->db);
     }
 
@@ -48,7 +51,10 @@ class DevelopmentAgreementsController
         $agreement = $_SESSION['old_devagr_form'] ?? [];
         $errors    = $_SESSION['flash_errors'] ?? [];
         unset($_SESSION['old_devagr_form'], $_SESSION['flash_errors']);
-
+        // Provide empty tracts array for the sub-form template
+        if (!isset($agreement['tracts'])) {
+            $agreement['tracts'] = [];
+        }
         $people = $this->getPeopleList();
         require APP_ROOT . '/app/views/development_agreements/edit.php';
     }
@@ -96,7 +102,10 @@ class DevelopmentAgreementsController
 
         // --- Create dev agreement linked to the new contract ---
         $data['contract_id'] = $contractId;
-        $this->model->create($data);
+        $newId = $this->model->create($data);
+
+        // --- Save tracts ---
+        $this->saveTracts($newId, $_POST['tracts'] ?? []);
 
         header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
         exit;
@@ -137,6 +146,9 @@ class DevelopmentAgreementsController
             unset($_SESSION['old_devagr_form']);
         }
 
+        // Load existing tracts for this agreement
+        $agreement['tracts'] = $this->tracts->allForAgreement($id);
+
         $people = $this->getPeopleList();
         require APP_ROOT . '/app/views/development_agreements/edit.php';
     }
@@ -160,6 +172,9 @@ class DevelopmentAgreementsController
         }
 
         $this->model->update($id, $data);
+
+        // Sync tracts (replace all)
+        $this->saveTracts($id, $_POST['tracts'] ?? []);
 
         // Keep linked contract name in sync with project_name
         $agreement = $this->model->find($id);
@@ -296,5 +311,33 @@ class DevelopmentAgreementsController
             $errors[] = 'Project name is required.';
         }
         return $errors;
+    }
+
+    /**
+     * Replace all tracts for a dev agreement with the posted rows.
+     * Rows that have no PIN, address, or real estate ID are skipped (blank rows).
+     */
+    private function saveTracts(int $devAgreementId, array $postedTracts): void
+    {
+        // Delete all existing and re-insert (simplest for a small set)
+        $this->tracts->deleteAllForAgreement($devAgreementId);
+
+        foreach ($postedTracts as $row) {
+            $pin     = trim((string)($row['property_pin']          ?? ''));
+            $address = trim((string)($row['property_address']       ?? ''));
+            $reid    = trim((string)($row['property_realestateid']  ?? ''));
+            // Skip completely blank rows
+            if ($pin === '' && $address === '' && $reid === '') {
+                continue;
+            }
+            $this->tracts->create($devAgreementId, [
+                'property_pin'          => $pin,
+                'property_address'      => $address,
+                'property_realestateid' => $reid,
+                'property_acerage'      => $row['property_acerage']    ?? '',
+                'property_owner_id'     => $row['property_owner_id']   ?? '',
+                'sort_order'            => $row['sort_order']          ?? 0,
+            ]);
+        }
     }
 }
