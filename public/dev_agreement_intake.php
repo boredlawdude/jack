@@ -69,7 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $appName = defined('APP_NAME') ? APP_NAME : 'Contracts';
 
-function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+if (!function_exists('h')) {
+    function h($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+}
 
 // Re-populate form on error
 $old = (!$success && $_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : [];
