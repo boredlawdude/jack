@@ -102,7 +102,7 @@ $v = fn($field) => h($agreement[$field] ?? '');
         // Render existing tracts (edit mode) or one blank row (create mode)
         $existingTracts = $agreement['tracts'] ?? [];
         if (empty($existingTracts)) {
-            $existingTracts = [['tract_id' => '', 'property_pin' => '', 'property_realestateid' => '', 'property_address' => '', 'property_acerage' => '', 'property_owner_id' => '', 'sort_order' => 0]];
+            $existingTracts = [['tract_id' => '', 'property_pin' => '', 'property_realestateid' => '', 'property_address' => '', 'property_acerage' => '', 'owner_name' => '', 'sort_order' => 0]];
         }
       ?>
       <?php foreach ($existingTracts as $ti => $tract): ?>
@@ -143,15 +143,10 @@ $v = fn($field) => h($agreement[$field] ?? '');
             <!-- Property Owner -->
             <div class="col-md-3">
               <label class="form-label form-label-sm mb-1">Property Owner</label>
-              <select class="form-select form-select-sm" name="tracts[<?= $ti ?>][property_owner_id]">
-                <option value="">— Select —</option>
-                <?php foreach ($people as $p): ?>
-                  <option value="<?= (int)$p['person_id'] ?>"
-                    <?= ((string)($tract['property_owner_id'] ?? '') === (string)$p['person_id']) ? 'selected' : '' ?>>
-                    <?= h($p['full_name']) ?>
-                  </option>
-                <?php endforeach; ?>
-              </select>
+              <input type="text" class="form-control form-control-sm tract-owner"
+                     name="tracts[<?= $ti ?>][owner_name]"
+                     value="<?= h($tract['owner_name'] ?? '') ?>"
+                     placeholder="Auto-filled from IMAPS">
             </div>
             <!-- Sort Order + Remove -->
             <div class="col-md-1">
@@ -235,13 +230,6 @@ function nextTractIndex() {
 }
 
 function buildTractRowHtml(idx) {
-  const peopleOptions = <?php
-    $opts = '<option value="">— Select —<\/option>';
-    foreach ($people as $p) {
-        $opts .= '<option value="' . (int)$p['person_id'] . '">' . htmlspecialchars($p['full_name'], ENT_QUOTES, 'UTF-8') . '<\/option>';
-    }
-    echo json_encode($opts);
-  ?>;
   return `
     <div class="tract-row card mb-2 border" data-index="${idx}">
       <div class="card-body p-3">
@@ -271,9 +259,9 @@ function buildTractRowHtml(idx) {
           </div>
           <div class="col-md-3">
             <label class="form-label form-label-sm mb-1">Property Owner</label>
-            <select class="form-select form-select-sm" name="tracts[${idx}][property_owner_id]">
-              ${peopleOptions}
-            </select>
+            <input type="text" class="form-control form-control-sm tract-owner"
+                   name="tracts[${idx}][owner_name]"
+                   placeholder="Auto-filled from IMAPS">
           </div>
           <div class="col-md-1">
             <label class="form-label form-label-sm mb-1">Order</label>
@@ -348,10 +336,12 @@ async function lookupTractPin(btn) {
     if (data.property_acerage != null) {
       row.querySelector('.tract-acreage').value = data.property_acerage;
     }
+    if (data.owner_name) {
+      row.querySelector('.tract-owner').value = data.owner_name;
+    }
 
     statusEl.className   = 'tract-status form-text text-success';
-    statusEl.textContent = '✓ Filled from Wake County GIS.'
-      + (data.owner_name_display ? ' Owner on record: ' + data.owner_name_display + ' — select from the list above.' : '');
+    statusEl.textContent = '✓ Filled from Wake County GIS.';
   } catch {
     statusEl.className   = 'tract-status form-text text-danger';
     statusEl.textContent = 'Request failed — check internet connection.';

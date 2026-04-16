@@ -335,8 +335,8 @@ class DevelopmentAgreementsController
                 'property_address'      => $address,
                 'property_realestateid' => $reid,
                 'property_acerage'      => $row['property_acerage']    ?? '',
-                'property_owner_id'     => $row['property_owner_id']   ?? '',
-                'sort_order'            => $row['sort_order']          ?? 0,
+                'owner_name'            => $row['owner_name']           ?? '',
+                'sort_order'            => $row['sort_order']           ?? 0,
             ]);
         }
     }

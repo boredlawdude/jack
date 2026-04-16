@@ -60,5 +60,5 @@ echo json_encode([
     'property_pin'          => (string)($attr['PIN_NUM'] ?? ''),
     'property_realestateid' => (string)($attr['REID']    ?? ''),
     'property_acerage'      => $attr['DEED_ACRES'] !== null ? (float)$attr['DEED_ACRES'] : null,
-    'owner_name_display'    => $ownerName,  // informational only — user selects from people list
+    'owner_name'            => $ownerName,
 ]);

@@ -13,10 +13,8 @@ class DevelopmentAgreementTract
     public function allForAgreement(int $devAgreementId): array
     {
         $stmt = $this->db->prepare("
-            SELECT t.*,
-                   CONCAT_WS(' ', p.first_name, p.last_name) AS owner_name
+            SELECT t.*
             FROM development_agreement_tracts t
-            LEFT JOIN people p ON p.person_id = t.property_owner_id
             WHERE t.dev_agreement_id = ?
             ORDER BY t.sort_order ASC, t.tract_id ASC
         ");
@@ -27,10 +25,8 @@ class DevelopmentAgreementTract
     public function find(int $tractId): ?array
     {
         $stmt = $this->db->prepare("
-            SELECT t.*,
-                   CONCAT_WS(' ', p.first_name, p.last_name) AS owner_name
+            SELECT t.*
             FROM development_agreement_tracts t
-            LEFT JOIN people p ON p.person_id = t.property_owner_id
             WHERE t.tract_id = ?
             LIMIT 1
         ");
@@ -44,10 +40,10 @@ class DevelopmentAgreementTract
         $stmt = $this->db->prepare("
             INSERT INTO development_agreement_tracts
                 (dev_agreement_id, property_address, property_pin, property_realestateid,
-                 property_acerage, property_owner_id, sort_order)
+                 property_acerage, owner_name, sort_order)
             VALUES
                 (:dev_agreement_id, :property_address, :property_pin, :property_realestateid,
-                 :property_acerage, :property_owner_id, :sort_order)
+                 :property_acerage, :owner_name, :sort_order)
         ");
         $stmt->execute($this->bind($devAgreementId, $data));
         return (int)$this->db->lastInsertId();
@@ -64,7 +60,7 @@ class DevelopmentAgreementTract
                 property_pin          = :property_pin,
                 property_realestateid = :property_realestateid,
                 property_acerage      = :property_acerage,
-                property_owner_id     = :property_owner_id,
+                owner_name            = :owner_name,
                 sort_order            = :sort_order
             WHERE tract_id = :tract_id
         ");
@@ -98,7 +94,7 @@ class DevelopmentAgreementTract
             ':property_pin'         => $nullStr($d['property_pin']           ?? null),
             ':property_realestateid' => $nullStr($d['property_realestateid'] ?? null),
             ':property_acerage'     => $nullDec($d['property_acerage']       ?? null),
-            ':property_owner_id'    => $nullInt($d['property_owner_id']      ?? null),
+            ':owner_name'           => $nullStr($d['owner_name']              ?? null),
             ':sort_order'           => (int)($d['sort_order'] ?? 0),
         ];
     }
