@@ -312,6 +312,50 @@ function decryptPdfIfNeeded(string $pdfPath): string
     return $pdfPath;
 }
 
+/**
+ * Flatten compressed object streams (PDF 1.5+ feature) so FPDI can parse the file.
+ * Uses qpdf --compress-streams=n --object-streams=disable.
+ * Falls back to ghostscript if qpdf is unavailable.
+ * Returns path to a flattened temp copy, or original path if neither tool is available.
+ */
+function flattenPdfForFpdi(string $pdfPath): string
+{
+    $tmpPdf = tempnam(sys_get_temp_dir(), 'fpdi_flat_') . '.pdf';
+
+    // Try qpdf first
+    $qpdf = trim(shell_exec('which qpdf 2>/dev/null') ?? '');
+    if ($qpdf !== '' && is_file($qpdf)) {
+        $cmd = escapeshellarg($qpdf)
+             . ' --compress-streams=n --object-streams=disable --decode-level=all'
+             . ' ' . escapeshellarg($pdfPath)
+             . ' ' . escapeshellarg($tmpPdf)
+             . ' 2>/dev/null';
+        shell_exec($cmd);
+        if (is_file($tmpPdf) && filesize($tmpPdf) > 0) {
+            return $tmpPdf;
+        }
+        @unlink($tmpPdf);
+    }
+
+    // Fallback: ghostscript re-renders the PDF to a clean 1.4-compatible version
+    $gs = trim(shell_exec('which gs 2>/dev/null') ?? '');
+    if ($gs !== '' && is_file($gs)) {
+        $cmd = escapeshellarg($gs)
+             . ' -dBATCH -dNOPAUSE -dQUIET -sDEVICE=pdfwrite'
+             . ' -dCompatibilityLevel=1.4'
+             . ' -sOutputFile=' . escapeshellarg($tmpPdf)
+             . ' ' . escapeshellarg($pdfPath)
+             . ' 2>/dev/null';
+        shell_exec($cmd);
+        if (is_file($tmpPdf) && filesize($tmpPdf) > 0) {
+            return $tmpPdf;
+        }
+        @unlink($tmpPdf);
+    }
+
+    return $pdfPath;
+}
+
 // Generate exhibit label: 0→A, 1→B, … 25→Z, 26→AA, etc.
 function getExhibitLabel(int $index): string
 {
@@ -355,7 +399,11 @@ foreach ($documents as $doc) {
             if ($decryptedPath !== $filePath) {
                 $tempFiles[] = $decryptedPath;
             }
-            $pdfFiles[] = ['path' => $decryptedPath, 'exhibit_label' => $docLabel];
+            $flattenedPath = flattenPdfForFpdi($decryptedPath);
+            if ($flattenedPath !== $decryptedPath) {
+                $tempFiles[] = $flattenedPath;
+            }
+            $pdfFiles[] = ['path' => $flattenedPath, 'exhibit_label' => $docLabel];
         } elseif ($ext === 'docx') {
             // Try LibreOffice first (most reliable on Linux), then Pandoc+Chrome
             $loError = '';
