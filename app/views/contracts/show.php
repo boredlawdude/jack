@@ -168,7 +168,11 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
             <?php if (!empty($contract['documents_path'])): ?>
             <div class="col-12">
               <div class="small text-muted">Contract Documents Path</div>
-              <div class="font-monospace small"><?= h($contract['documents_path']) ?></div>
+              <div class="font-monospace small">
+                <a href="<?= h($contract['documents_path']) ?>" target="_blank" rel="noopener noreferrer">
+                  <?= h($contract['documents_path']) ?>
+                </a>
+              </div>
             </div>
             <?php endif; ?>
           </div>
