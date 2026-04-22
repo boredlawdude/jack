@@ -75,7 +75,7 @@ final class PeopleController
         }
         $departments = $this->people->allDepartments();
         $errors = [];
-        $can_edit_roles = (function_exists('person_has_role_key') && (person_has_role_key('superuser') || person_has_role_key('admin')));
+        $can_edit_roles = (function_exists('person_has_role_key') && (person_has_role_key('SUPERUSER') || person_has_role_key('ADMIN')));
         $roles = [];
         $assigned_role_ids = [];
         if ($can_edit_roles) {
@@ -104,7 +104,7 @@ final class PeopleController
         $person = $this->collectFormData();
         $person['person_id'] = $id;
         $errors = $this->validate($person);
-        $can_edit_roles = (function_exists('person_has_role_key') && (person_has_role_key('superuser') || person_has_role_key('admin')));
+        $can_edit_roles = (function_exists('person_has_role_key') && (person_has_role_key('SUPERUSER') || person_has_role_key('ADMIN')));
         if ($errors) {
             $departments = $this->people->allDepartments();
             $roles = [];
