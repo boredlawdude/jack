@@ -162,6 +162,11 @@ switch ($page) {
         (new ApprovalRulesController())->stampApproval();
         break;
 
+    case 'approval_email_risk_manager':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->emailRiskManager();
+        break;
+
 case 'companies':
     $companiesController->index();
     break;

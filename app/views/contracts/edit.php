@@ -84,6 +84,15 @@ if (!function_exists('h')) {
                         <span class="text-muted small d-block">Waives approvals flagged as standard-contract exempt</span>
                     </label>
                 </div>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="minimum_insurance_coi"
+                           id="minimum_insurance_coi" value="1"
+                           <?= !empty($contract['minimum_insurance_coi']) ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="minimum_insurance_coi">
+                        Existing COI with $5 Million coverage?
+                        <span class="text-muted small d-block">Waives Risk Manager review if flagged as insurance-exempt</span>
+                    </label>
+                </div>
             </div>
 
             <div class="col-md-4">

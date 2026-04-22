@@ -85,6 +85,9 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
                 <?php if (!empty($contract['use_standard_contract'])): ?>
                   <span class="badge text-bg-info ms-1">Standard Contract</span>
                 <?php endif; ?>
+                <?php if (!empty($contract['minimum_insurance_coi'])): ?>
+                  <span class="badge text-bg-success ms-1">COI ≥$5M</span>
+                <?php endif; ?>
               </div>
             </div>
              <div class="col-md-6">
@@ -466,6 +469,14 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
                         <?= $approvedDate ? 'Re-stamp' : 'Stamp' ?>
                         <?php if (!$hasRole): ?><i class="text-warning">⚠</i><?php endif; ?>
                       </button>
+                      <?php if ($key === 'risk_manager' && empty($approvedDate)): ?>
+                        <form method="post" action="/index.php?page=approval_email_risk_manager" class="d-inline ms-1">
+                          <input type="hidden" name="contract_id" value="<?= (int)$contract['contract_id'] ?>">
+                          <button type="submit" class="btn btn-sm btn-outline-primary">
+                            📧 Email Risk Manager
+                          </button>
+                        </form>
+                      <?php endif; ?>
                     <?php endif; ?>
                   </td>
                 </tr>

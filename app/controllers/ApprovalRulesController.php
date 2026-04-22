@@ -81,8 +81,8 @@ class ApprovalRulesController
         }
 
         $this->db->prepare("
-            INSERT INTO approval_rules (rule_name, contract_field, operator, threshold_value, required_approval, is_active, sort_order, waived_by_standard_contract)
-            VALUES (:rule_name, :contract_field, :operator, :threshold_value, :required_approval, :is_active, :sort_order, :waived_by_standard_contract)
+            INSERT INTO approval_rules (rule_name, contract_field, operator, threshold_value, required_approval, is_active, sort_order, waived_by_standard_contract, waived_by_min_insurance)
+            VALUES (:rule_name, :contract_field, :operator, :threshold_value, :required_approval, :is_active, :sort_order, :waived_by_standard_contract, :waived_by_min_insurance)
         ")->execute($data);
 
         $_SESSION['flash_messages'] = ['Rule created.'];
@@ -109,7 +109,8 @@ class ApprovalRulesController
             SET rule_name=:rule_name, contract_field=:contract_field, operator=:operator,
                 threshold_value=:threshold_value, required_approval=:required_approval,
                 is_active=:is_active, sort_order=:sort_order,
-                waived_by_standard_contract=:waived_by_standard_contract
+                waived_by_standard_contract=:waived_by_standard_contract,
+                waived_by_min_insurance=:waived_by_min_insurance
             WHERE rule_id=:rule_id
         ")->execute($data);
 
@@ -210,11 +211,16 @@ class ApprovalRulesController
     {
         $rules = $db->query("SELECT * FROM approval_rules WHERE is_active = 1 ORDER BY sort_order")->fetchAll(PDO::FETCH_ASSOC);
         $required = [];
-        $isStandard = !empty($contract['use_standard_contract']);
+        $isStandard    = !empty($contract['use_standard_contract']);
+        $hasMinInsurance = !empty($contract['minimum_insurance_coi']);
 
         foreach ($rules as $rule) {
             // Skip rules waived by standard contract when applicable
             if ($isStandard && !empty($rule['waived_by_standard_contract'])) {
+                continue;
+            }
+            // Skip rules waived by minimum insurance COI when applicable
+            if ($hasMinInsurance && !empty($rule['waived_by_min_insurance'])) {
                 continue;
             }
 
@@ -254,6 +260,7 @@ class ApprovalRulesController
             'is_active'                   => isset($input['is_active']) ? 1 : 0,
             'sort_order'                  => (int)($input['sort_order'] ?? 0),
             'waived_by_standard_contract' => isset($input['waived_by_standard_contract']) ? 1 : 0,
+            'waived_by_min_insurance'      => isset($input['waived_by_min_insurance']) ? 1 : 0,
         ];
     }
 
@@ -268,6 +275,146 @@ class ApprovalRulesController
         return $errors;
     }
 
+    // ── Email Risk Manager for approval ──────────────────────────────────────
+    public function emailRiskManager(): void
+    {
+        require_login();
+        if (!is_system_admin()) {
+            http_response_code(403); exit;
+        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405); exit;
+        }
+
+        $contractId = (int)($_POST['contract_id'] ?? 0);
+        if ($contractId <= 0) {
+            $_SESSION['flash_errors'] = ['Invalid contract.'];
+            header('Location: /index.php?page=contracts');
+            exit;
+        }
+
+        // Fetch contract basic info
+        $stmt = $this->db->prepare("SELECT contract_id, name, contract_number FROM contracts WHERE contract_id = ? LIMIT 1");
+        $stmt->execute([$contractId]);
+        $contract = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$contract) {
+            $_SESSION['flash_errors'] = ['Contract not found.'];
+            header('Location: /index.php?page=contracts');
+            exit;
+        }
+
+        // Find Risk Manager recipients:
+        // 1) People with TOWN_MANAGER role (mapped role for risk_manager)
+        // 2) Fall back to system_settings.risk_manager_email if set
+        $recipients = [];
+
+        $stmt = $this->db->prepare("
+            SELECT p.email, CONCAT(p.first_name, ' ', p.last_name) AS full_name
+            FROM people p
+            JOIN person_roles pr ON pr.person_id = p.person_id
+            JOIN roles r ON r.role_id = pr.role_id
+            WHERE r.role_key = 'RISK_MANAGER'
+              AND r.is_active = 1
+              AND p.email IS NOT NULL AND p.email != ''
+        ");
+        $stmt->execute();
+        $recipients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // If no RISK_MANAGER role holders, try system_settings fallback
+        if (empty($recipients)) {
+            $fallbackEmail = $this->getSystemSetting('risk_manager_email');
+            if ($fallbackEmail !== '') {
+                $recipients[] = ['email' => $fallbackEmail, 'full_name' => 'Risk Manager'];
+            }
+        }
+
+        if (empty($recipients)) {
+            $_SESSION['flash_errors'] = ['No Risk Manager email address found. Please add a person with the RISK_MANAGER role or set risk_manager_email in System Settings.'];
+            header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
+            exit;
+        }
+
+        $scheme      = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host        = $_SERVER['HTTP_HOST'];
+        $contractUrl = $scheme . '://' . $host . '/index.php?page=contracts_show&contract_id=' . $contractId;
+        $contractLabel = h($contract['name'] ?? 'Contract #' . $contract['contract_number']);
+
+        // Send emails
+        $sent = 0;
+        $errors = [];
+        foreach ($recipients as $recipient) {
+            try {
+                $this->sendRiskManagerEmail($recipient['email'], $recipient['full_name'], $contractLabel, $contractUrl, $contractId);
+                $sent++;
+            } catch (\Throwable $e) {
+                error_log('Risk manager email failed to ' . $recipient['email'] . ': ' . $e->getMessage());
+                $errors[] = 'Failed to send to ' . $recipient['email'];
+            }
+        }
+
+        // Log to contract history
+        $person     = current_person();
+        $personName = trim(($person['first_name'] ?? '') . ' ' . ($person['last_name'] ?? ''));
+        if (empty(trim($personName))) $personName = $person['display_name'] ?? $person['email'] ?? 'Unknown';
+        $personId   = !empty($person['person_id']) ? (int)$person['person_id'] : null;
+        $sentTo     = implode(', ', array_column($recipients, 'email'));
+        $note       = "Risk Manager approval email sent by $personName to: $sentTo";
+
+        $this->db->prepare(
+            "INSERT INTO contract_status_history (contract_id, event_type, old_status, new_status, changed_by, changed_at, notes)
+             VALUES (?, 'approval_email', NULL, NULL, ?, NOW(), ?)"
+        )->execute([$contractId, $personId, $note]);
+
+        if ($sent > 0) {
+            $_SESSION['flash_messages'] = ['Risk Manager approval email sent to ' . $sent . ' recipient(s).'];
+        }
+        if ($errors) {
+            $_SESSION['flash_errors'] = $errors;
+        }
+        header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
+        exit;
+    }
+
+    private function sendRiskManagerEmail(string $toEmail, string $toName, string $contractLabel, string $contractUrl, int $contractId): void
+    {
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+        $mail->SMTPDebug  = 0;
+        $mail->Debugoutput = function ($str, $level) { error_log("SMTPDBG[$level] $str"); };
+
+        $mail->isSMTP();
+        $mail->Host       = $_ENV['SMTP_HOST'];
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $_ENV['SMTP_USERNAME'];
+        $mail->Password   = $_ENV['SMTP_PASSWORD'];
+        $mail->SMTPSecure = (($_ENV['SMTP_SECURE'] ?? 'tls') === 'ssl')
+            ? \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS
+            : \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = (int) $_ENV['SMTP_PORT'];
+        $mail->Timeout    = 15;
+
+        $mail->setFrom($_ENV['MAIL_FROM_EMAIL'], $_ENV['MAIL_FROM_NAME'] ?? '');
+        $mail->addAddress($toEmail, $toName);
+
+        $mail->isHTML(true);
+        $mail->Subject = 'Action Required: Risk Manager Approval Needed — ' . strip_tags($contractLabel);
+
+        $safeUrl   = htmlspecialchars($contractUrl, ENT_QUOTES, 'UTF-8');
+        $mail->Body = "
+            <p>Hello {$toName},</p>
+            <p>Your approval is needed as Risk Manager for the following contract:</p>
+            <p><strong>{$contractLabel}</strong></p>
+            <p><a href=\"{$safeUrl}\">Click here to review and approve the contract</a></p>
+            <p>Please log in and stamp your Risk Manager approval at your earliest convenience.</p>
+        ";
+        $mail->AltBody =
+            "Hello {$toName},\n\n" .
+            "Your Risk Manager approval is needed for: " . strip_tags($contractLabel) . "\n\n" .
+            "Review the contract here:\n{$contractUrl}\n\n" .
+            "Please log in and stamp your Risk Manager approval.\n";
+
+        $mail->send();
+    }
+
     private function requireAdmin(): void
     {
         if (function_exists('is_system_admin') && !is_system_admin()) {
@@ -280,5 +427,12 @@ class ApprovalRulesController
     {
         header('Location: /index.php?page=approval_rules');
         exit;
+    }
+
+    private function getSystemSetting(string $key): string
+    {
+        $stmt = $this->db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1");
+        $stmt->execute([$key]);
+        return (string)($stmt->fetchColumn() ?: '');
     }
 }

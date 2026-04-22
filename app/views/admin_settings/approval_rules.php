@@ -51,6 +51,7 @@ foreach (($contractTypes ?? []) as $ct) {
             <th>When…</th>
             <th>Requires</th>
             <th class="text-center">Waived if<br>Std Contract?</th>
+            <th class="text-center">Waived if<br>COI ≥$5M?</th>
             <th class="text-center">Active</th>
             <th class="text-center">Order</th>
             <th style="width:160px;"></th>
@@ -79,6 +80,11 @@ foreach (($contractTypes ?? []) as $ct) {
                 <td class="text-center">
                   <?= !empty($rule['waived_by_standard_contract'])
                     ? '<span class="badge text-bg-info">Yes</span>'
+                    : '<span class="text-muted small">—</span>' ?>
+                </td>
+                <td class="text-center">
+                  <?= !empty($rule['waived_by_min_insurance'])
+                    ? '<span class="badge text-bg-success">Yes</span>'
                     : '<span class="text-muted small">—</span>' ?>
                 </td>
                 <td class="text-center">
@@ -243,6 +249,17 @@ function _approval_rule_fields(?array $rule, array $fieldOptions, array $approva
         </div>
       </div>
 
+      <div class="col-md-4 d-flex align-items-end">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="waived_by_min_insurance"
+                 id="waived_ins_<?= $uid ?>"
+            <?= !empty($rule['waived_by_min_insurance']) ? 'checked' : '' ?>>
+          <label class="form-check-label" for="waived_ins_<?= $uid ?>">
+            Waived if "COI ≥$5M" is checked
+          </label>
+        </div>
+      </div>
+
     </div>
     <script>
     function toggleThreshold_<?= $uid ?>(field) {
@@ -335,6 +352,12 @@ function openEditModal(rule) {
           + '<input class="form-check-input" type="checkbox" name="waived_by_standard_contract"'
           + (parseInt(rule.waived_by_standard_contract) === 1 ? ' checked' : '') + '>'
           + '<label class="form-check-label">Waived if &ldquo;Use Standard Contract&rdquo; is checked</label>'
+          + '</div></div>';
+
+    html += '<div class="col-md-6 d-flex align-items-end"><div class="form-check mb-2">'
+          + '<input class="form-check-input" type="checkbox" name="waived_by_min_insurance"'
+          + (parseInt(rule.waived_by_min_insurance) === 1 ? ' checked' : '') + '>'
+          + '<label class="form-check-label">Waived if &ldquo;COI &ge;$5M&rdquo; is checked</label>'
           + '</div></div>';
 
     html += '</div>';
