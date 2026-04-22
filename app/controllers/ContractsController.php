@@ -263,10 +263,6 @@ class ContractsController
               AND p.email IS NOT NULL AND p.email != ''
         ");
         $emails = $stmt ? $stmt->fetchAll(\PDO::FETCH_COLUMN) : [];
-        if (empty($emails)) {
-            $fallback = $this->getSystemSetting('risk_manager_email');
-            if ($fallback !== '') $emails[] = $fallback;
-        }
         return implode(',', $emails);
     }
 

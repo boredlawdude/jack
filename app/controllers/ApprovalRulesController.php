@@ -316,7 +316,7 @@ class ApprovalRulesController
         $recipients = $this->findRiskManagerRecipients();
 
         if (empty($recipients)) {
-            $_SESSION['flash_errors'] = ['No Risk Manager email address found. Please add a person with the RISK_MANAGER role or set risk_manager_email in System Settings.'];
+            $_SESSION['flash_errors'] = ['No recipients found. Please assign the RISK_MANAGER role to at least one user (Admin → People → edit user → check "Risk Manager").'];
             header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
             exit;
         }
@@ -385,13 +385,6 @@ class ApprovalRulesController
         ");
         $stmt->execute();
         $recipients = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        if (empty($recipients)) {
-            $fallbackEmail = $this->getSystemSetting('risk_manager_email');
-            if ($fallbackEmail !== '') {
-                $recipients[] = ['email' => $fallbackEmail, 'full_name' => 'Risk Manager'];
-            }
-        }
 
         return $recipients;
     }
