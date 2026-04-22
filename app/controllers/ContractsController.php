@@ -251,6 +251,25 @@ class ContractsController
         return (string)($stmt->fetchColumn() ?: '');
     }
 
+    private function getRiskManagerEmails(): string
+    {
+        $stmt = $this->db->query("
+            SELECT p.email
+            FROM people p
+            JOIN person_roles pr ON pr.person_id = p.person_id
+            JOIN roles r ON r.role_id = pr.role_id
+            WHERE r.role_key = 'RISK_MANAGER'
+              AND r.is_active = 1
+              AND p.email IS NOT NULL AND p.email != ''
+        ");
+        $emails = $stmt ? $stmt->fetchAll(\PDO::FETCH_COLUMN) : [];
+        if (empty($emails)) {
+            $fallback = $this->getSystemSetting('risk_manager_email');
+            if ($fallback !== '') $emails[] = $fallback;
+        }
+        return implode(',', $emails);
+    }
+
     public function index(): void
     {
         $contracts = $this->contracts->search([]);
@@ -452,6 +471,7 @@ class ContractsController
         }
         $counterpartyPeople = $this->getCounterpartyPrimaryContacts();
         $complianceInfoLink = $this->getSystemSetting('compliance_info_link');
+        $riskManagerEmails  = $this->getRiskManagerEmails();
         require APP_ROOT . '/app/views/contracts/edit.php';
     }
 

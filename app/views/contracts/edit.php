@@ -94,26 +94,28 @@ if (!function_exists('h')) {
                     </label>
                 </div>
                 <?php if ($isEdit && $contractId): ?>
+                <?php
+                    $rmTo      = $riskManagerEmails ?? '';
+                    $rmCnum    = $contract['contract_number'] ?? ('ID ' . $contractId);
+                    $rmName    = $contract['name'] ?? '';
+                    $rmPerson  = trim((current_person()['first_name'] ?? '') . ' ' . (current_person()['last_name'] ?? ''));
+                    $scheme    = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                    $rmUrl     = $scheme . '://' . $_SERVER['HTTP_HOST'] . '/index.php?page=contracts_show&contract_id=' . (int)$contractId;
+                    $rmSubject = rawurlencode('Request: Please Consider Reduced Insurance Requirements — Contract ' . $rmCnum);
+                    $rmBody    = rawurlencode(
+                        "Please consider reduced insurance requirements for the following contract:\r\n\r\n" .
+                        $rmCnum . ($rmName ? ' — ' . $rmName : '') . "\r\n\r\n" .
+                        "View the contract here:\r\n" . $rmUrl . "\r\n\r\n" .
+                        "Contact " . ($rmPerson ?: 'the contract manager') . " for additional details."
+                    );
+                    $rmMailto  = 'mailto:' . $rmTo . '?subject=' . $rmSubject . '&body=' . $rmBody;
+                ?>
                 <div class="mt-2">
-                    <button type="button" class="btn btn-sm btn-outline-primary"
-                            onclick="emailRiskManagerReduced(<?= (int)$contractId ?>)">
+                    <a href="<?= h($rmMailto) ?>" class="btn btn-sm btn-outline-primary">
                         &#128231; Email Risk Manager for reduced insurance
-                    </button>
-                    <div class="form-text text-muted">Sends an email asking Risk Manager to consider reduced insurance requirements.</div>
+                    </a>
+                    <div class="form-text text-muted">Opens your email client &mdash; pre-populated and editable before sending.</div>
                 </div>
-                <script>
-                function emailRiskManagerReduced(contractId) {
-                    if (!confirm('Send reduced insurance request to Risk Manager?\n\nNote: any unsaved changes on this form will not be sent.')) return;
-                    var f = document.createElement('form');
-                    f.method = 'post';
-                    f.action = '/index.php?page=approval_email_risk_manager_reduced';
-                    var inp = document.createElement('input');
-                    inp.type = 'hidden'; inp.name = 'contract_id'; inp.value = contractId;
-                    f.appendChild(inp);
-                    document.body.appendChild(f);
-                    f.submit();
-                }
-                </script>
                 <?php endif; ?>
             </div>
 
