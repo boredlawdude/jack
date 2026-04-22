@@ -137,6 +137,31 @@ switch ($page) {
         $ContractTypesController->delete((int)($_GET['contract_type_id'] ?? 0));
         break;
 
+    case 'approval_rules':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->index();
+        break;
+
+    case 'approval_rules_store':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->store();
+        break;
+
+    case 'approval_rules_update':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->update((int)($_GET['rule_id'] ?? 0));
+        break;
+
+    case 'approval_rules_delete':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->destroy((int)($_GET['rule_id'] ?? 0));
+        break;
+
+    case 'approval_stamp':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->stampApproval();
+        break;
+
 case 'companies':
     $companiesController->index();
     break;

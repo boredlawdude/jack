@@ -91,6 +91,7 @@ declare(strict_types=1);
           <li class="nav-item"><a class="nav-link" href="/index.php?page=contract_types">Contract Templates</a></li>
           <li class="nav-item"><a class="nav-link" href="/index.php?page=people_create">New User</a></li>
           <li class="nav-item"><a class="nav-link" href="/index.php?page=admin_settings">System Settings</a></li>
+          <li class="nav-item"><a class="nav-link" href="/index.php?page=approval_rules">Approval Rules</a></li>
         <?php endif; ?>
 
         <li class="nav-item"><a class="nav-link" href="/logout.php">Logout</a></li>

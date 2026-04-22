@@ -386,6 +386,103 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
       </div>
       <?php endif; ?>
 
+      <!-- ── Approval Status Panel ── -->
+      <?php
+        $approvalMeta = [
+            'manager'      => ['label' => 'Manager',      'col' => 'manager_approval_date'],
+            'purchasing'   => ['label' => 'Purchasing',   'col' => 'purchasing_approval_date'],
+            'legal'        => ['label' => 'Legal',        'col' => 'legal_approval_date'],
+            'risk_manager' => ['label' => 'Risk Manager', 'col' => 'risk_manager_approval_date'],
+            'council'      => ['label' => 'Council',      'col' => 'council_approval_date'],
+        ];
+        $requiredApprovals = $requiredApprovals ?? [];
+        $anyRequired = !empty($requiredApprovals);
+        $pendingCount = 0;
+        foreach ($requiredApprovals as $rk) {
+            if (empty($contract[$approvalMeta[$rk]['col']])) $pendingCount++;
+        }
+      ?>
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+          <h2 class="h6 mb-0">Approvals</h2>
+          <?php if (!$anyRequired): ?>
+            <span class="badge text-bg-secondary">No Approvals Required</span>
+          <?php elseif ($pendingCount === 0): ?>
+            <span class="badge text-bg-success">All Required Approvals Complete</span>
+          <?php else: ?>
+            <span class="badge text-bg-warning text-dark"><?= $pendingCount ?> Pending</span>
+          <?php endif; ?>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead class="table-light">
+              <tr><th>Approval</th><th>Required?</th><th>Date Approved</th><th></th></tr>
+            </thead>
+            <tbody>
+              <?php foreach ($approvalMeta as $key => $meta): ?>
+                <?php
+                  $isRequired   = in_array($key, $requiredApprovals, true);
+                  $approvedDate = $contract[$meta['col']] ?? null;
+                ?>
+                <tr class="<?= ($isRequired && !$approvedDate) ? 'table-warning' : '' ?>">
+                  <td class="fw-semibold"><?= h($meta['label']) ?></td>
+                  <td>
+                    <?= $isRequired
+                        ? '<span class="badge text-bg-warning text-dark">Required</span>'
+                        : '<span class="text-muted small">—</span>' ?>
+                  </td>
+                  <td>
+                    <?= $approvedDate
+                        ? '<span class="text-success fw-semibold">' . h($approvedDate) . '</span>'
+                        : '<span class="text-muted">Not approved</span>' ?>
+                  </td>
+                  <td class="text-end">
+                    <?php if ($isRequired || $approvedDate): ?>
+                      <button class="btn btn-sm btn-outline-secondary"
+                              onclick="openApprovalModal('<?= h($key) ?>', '<?= h($meta['label']) ?>', '<?= h($approvedDate ?? '') ?>')">
+                        <?= $approvedDate ? 'Change' : 'Stamp' ?>
+                      </button>
+                    <?php endif; ?>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Approval stamp modal -->
+      <div class="modal fade" id="approvalStampModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <form method="post" action="/index.php?page=approval_stamp" class="modal-content">
+            <input type="hidden" name="contract_id" value="<?= (int)$contract['contract_id'] ?>">
+            <input type="hidden" name="approval_type" id="approvalStampType">
+            <div class="modal-header">
+              <h5 class="modal-title" id="approvalStampTitle">Set Approval Date</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <label class="form-label fw-semibold" id="approvalStampLabel"></label>
+              <input type="date" class="form-control mt-2" name="approval_date" id="approvalStampDate">
+              <div class="form-text mt-1">Leave blank to clear the approval date.</div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button class="btn btn-primary">Save</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <script>
+      function openApprovalModal(key, label, currentDate) {
+          document.getElementById('approvalStampType').value        = key;
+          document.getElementById('approvalStampTitle').textContent = 'Set ' + label + ' Approval Date';
+          document.getElementById('approvalStampLabel').textContent = label + ' Approval Date';
+          document.getElementById('approvalStampDate').value        = currentDate || '';
+          new bootstrap.Modal(document.getElementById('approvalStampModal')).show();
+      }
+      </script>
+
     </div>
 
   </div>

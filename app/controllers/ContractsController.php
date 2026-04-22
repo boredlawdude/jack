@@ -324,10 +324,12 @@ class ContractsController
             }
         }
 
+        // Load approval rules and evaluate which are required for this contract
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        $requiredApprovals = ApprovalRulesController::requiredApprovalsFor($this->db, $contract);
+
         require APP_ROOT . '/app/views/contracts/show.php';
     }
-
-    public function create(): void
     {
         $mode = 'create';
         $flashErrors = $_SESSION['flash_errors'] ?? [];
