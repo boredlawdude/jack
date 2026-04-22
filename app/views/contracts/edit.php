@@ -93,6 +93,28 @@ if (!function_exists('h')) {
                         <span class="text-muted small d-block">Waives Risk Manager review if flagged as insurance-exempt</span>
                     </label>
                 </div>
+                <?php if ($isEdit && $contractId): ?>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            onclick="emailRiskManagerReduced(<?= (int)$contractId ?>)">
+                        &#128231; Email Risk Manager for reduced insurance
+                    </button>
+                    <div class="form-text text-muted">Sends an email asking Risk Manager to consider reduced insurance requirements.</div>
+                </div>
+                <script>
+                function emailRiskManagerReduced(contractId) {
+                    if (!confirm('Send reduced insurance request to Risk Manager?\n\nNote: any unsaved changes on this form will not be sent.')) return;
+                    var f = document.createElement('form');
+                    f.method = 'post';
+                    f.action = '/index.php?page=approval_email_risk_manager_reduced';
+                    var inp = document.createElement('input');
+                    inp.type = 'hidden'; inp.name = 'contract_id'; inp.value = contractId;
+                    f.appendChild(inp);
+                    document.body.appendChild(f);
+                    f.submit();
+                }
+                </script>
+                <?php endif; ?>
             </div>
 
             <div class="col-md-4">

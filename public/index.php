@@ -171,6 +171,11 @@ switch ($page) {
         (new ApprovalRulesController())->emailRiskManager();
         break;
 
+    case 'approval_email_risk_manager_reduced':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->emailRiskManagerReduced();
+        break;
+
 case 'companies':
     $companiesController->index();
     break;

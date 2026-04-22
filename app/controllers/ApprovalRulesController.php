@@ -278,6 +278,16 @@ class ApprovalRulesController
     // ── Email Risk Manager for approval ──────────────────────────────────────
     public function emailRiskManager(): void
     {
+        $this->dispatchRiskManagerEmail(false);
+    }
+
+    public function emailRiskManagerReduced(): void
+    {
+        $this->dispatchRiskManagerEmail(true);
+    }
+
+    private function dispatchRiskManagerEmail(bool $reducedInsurance): void
+    {
         require_login();
         if (!is_system_admin()) {
             http_response_code(403); exit;
@@ -303,11 +313,67 @@ class ApprovalRulesController
             exit;
         }
 
-        // Find Risk Manager recipients:
-        // 1) People with TOWN_MANAGER role (mapped role for risk_manager)
-        // 2) Fall back to system_settings.risk_manager_email if set
-        $recipients = [];
+        $recipients = $this->findRiskManagerRecipients();
 
+        if (empty($recipients)) {
+            $_SESSION['flash_errors'] = ['No Risk Manager email address found. Please add a person with the RISK_MANAGER role or set risk_manager_email in System Settings.'];
+            header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
+            exit;
+        }
+
+        $person     = current_person();
+        $personName = trim(($person['first_name'] ?? '') . ' ' . ($person['last_name'] ?? ''));
+        if (empty(trim($personName))) $personName = $person['display_name'] ?? $person['email'] ?? 'Unknown';
+        $personId   = !empty($person['person_id']) ? (int)$person['person_id'] : null;
+
+        $scheme        = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host          = $_SERVER['HTTP_HOST'];
+        $contractUrl   = $scheme . '://' . $host . '/index.php?page=contracts_show&contract_id=' . $contractId;
+        $contractLabel = $contract['name'] ?? ('Contract #' . $contract['contract_number']);
+        $contractNumber = $contract['contract_number'] ?? ('ID ' . $contractId);
+
+        $sent   = 0;
+        $errors = [];
+        foreach ($recipients as $recipient) {
+            try {
+                $this->sendRiskManagerEmail(
+                    $recipient['email'],
+                    $recipient['full_name'],
+                    $contractLabel,
+                    $contractNumber,
+                    $contractUrl,
+                    $personName,
+                    $reducedInsurance
+                );
+                $sent++;
+            } catch (\Throwable $e) {
+                error_log('Risk manager email failed to ' . $recipient['email'] . ': ' . $e->getMessage());
+                $errors[] = 'Failed to send to ' . $recipient['email'];
+            }
+        }
+
+        $sentTo = implode(', ', array_column($recipients, 'email'));
+        $noteType = $reducedInsurance ? 'reduced insurance request' : 'approval';
+        $note = "Risk Manager $noteType email sent by $personName to: $sentTo";
+
+        $this->db->prepare(
+            "INSERT INTO contract_status_history (contract_id, event_type, old_status, new_status, changed_by, changed_at, notes)
+             VALUES (?, 'approval_email', NULL, NULL, ?, NOW(), ?)"
+        )->execute([$contractId, $personId, $note]);
+
+        if ($sent > 0) {
+            $label = $reducedInsurance ? 'Reduced insurance request' : 'Risk Manager approval email';
+            $_SESSION['flash_messages'] = [$label . ' sent to ' . $sent . ' recipient(s).'];
+        }
+        if ($errors) {
+            $_SESSION['flash_errors'] = $errors;
+        }
+        header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
+        exit;
+    }
+
+    private function findRiskManagerRecipients(): array
+    {
         $stmt = $this->db->prepare("
             SELECT p.email, CONCAT(p.first_name, ' ', p.last_name) AS full_name
             FROM people p
@@ -320,7 +386,6 @@ class ApprovalRulesController
         $stmt->execute();
         $recipients = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // If no RISK_MANAGER role holders, try system_settings fallback
         if (empty($recipients)) {
             $fallbackEmail = $this->getSystemSetting('risk_manager_email');
             if ($fallbackEmail !== '') {
@@ -328,55 +393,18 @@ class ApprovalRulesController
             }
         }
 
-        if (empty($recipients)) {
-            $_SESSION['flash_errors'] = ['No Risk Manager email address found. Please add a person with the RISK_MANAGER role or set risk_manager_email in System Settings.'];
-            header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
-            exit;
-        }
-
-        $scheme      = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host        = $_SERVER['HTTP_HOST'];
-        $contractUrl = $scheme . '://' . $host . '/index.php?page=contracts_show&contract_id=' . $contractId;
-        $contractLabel = h($contract['name'] ?? 'Contract #' . $contract['contract_number']);
-
-        // Send emails
-        $sent = 0;
-        $errors = [];
-        foreach ($recipients as $recipient) {
-            try {
-                $this->sendRiskManagerEmail($recipient['email'], $recipient['full_name'], $contractLabel, $contractUrl, $contractId);
-                $sent++;
-            } catch (\Throwable $e) {
-                error_log('Risk manager email failed to ' . $recipient['email'] . ': ' . $e->getMessage());
-                $errors[] = 'Failed to send to ' . $recipient['email'];
-            }
-        }
-
-        // Log to contract history
-        $person     = current_person();
-        $personName = trim(($person['first_name'] ?? '') . ' ' . ($person['last_name'] ?? ''));
-        if (empty(trim($personName))) $personName = $person['display_name'] ?? $person['email'] ?? 'Unknown';
-        $personId   = !empty($person['person_id']) ? (int)$person['person_id'] : null;
-        $sentTo     = implode(', ', array_column($recipients, 'email'));
-        $note       = "Risk Manager approval email sent by $personName to: $sentTo";
-
-        $this->db->prepare(
-            "INSERT INTO contract_status_history (contract_id, event_type, old_status, new_status, changed_by, changed_at, notes)
-             VALUES (?, 'approval_email', NULL, NULL, ?, NOW(), ?)"
-        )->execute([$contractId, $personId, $note]);
-
-        if ($sent > 0) {
-            $_SESSION['flash_messages'] = ['Risk Manager approval email sent to ' . $sent . ' recipient(s).'];
-        }
-        if ($errors) {
-            $_SESSION['flash_errors'] = $errors;
-        }
-        header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
-        exit;
+        return $recipients;
     }
 
-    private function sendRiskManagerEmail(string $toEmail, string $toName, string $contractLabel, string $contractUrl, int $contractId): void
-    {
+    private function sendRiskManagerEmail(
+        string $toEmail,
+        string $toName,
+        string $contractLabel,
+        string $contractNumber,
+        string $contractUrl,
+        string $senderName,
+        bool   $reducedInsurance = false
+    ): void {
         $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
         $mail->SMTPDebug  = 0;
         $mail->Debugoutput = function ($str, $level) { error_log("SMTPDBG[$level] $str"); };
@@ -396,21 +424,43 @@ class ApprovalRulesController
         $mail->addAddress($toEmail, $toName);
 
         $mail->isHTML(true);
-        $mail->Subject = 'Action Required: Risk Manager Approval Needed — ' . strip_tags($contractLabel);
 
-        $safeUrl   = htmlspecialchars($contractUrl, ENT_QUOTES, 'UTF-8');
-        $mail->Body = "
-            <p>Hello {$toName},</p>
-            <p>Your approval is needed as Risk Manager for the following contract:</p>
-            <p><strong>{$contractLabel}</strong></p>
-            <p><a href=\"{$safeUrl}\">Click here to review and approve the contract</a></p>
-            <p>Please log in and stamp your Risk Manager approval at your earliest convenience.</p>
-        ";
-        $mail->AltBody =
-            "Hello {$toName},\n\n" .
-            "Your Risk Manager approval is needed for: " . strip_tags($contractLabel) . "\n\n" .
-            "Review the contract here:\n{$contractUrl}\n\n" .
-            "Please log in and stamp your Risk Manager approval.\n";
+        $safeUrl    = htmlspecialchars($contractUrl, ENT_QUOTES, 'UTF-8');
+        $safeNumber = htmlspecialchars($contractNumber, ENT_QUOTES, 'UTF-8');
+        $safeSender = htmlspecialchars($senderName, ENT_QUOTES, 'UTF-8');
+        $safeLabel  = htmlspecialchars($contractLabel, ENT_QUOTES, 'UTF-8');
+
+        if ($reducedInsurance) {
+            $mail->Subject = 'Request: Please Consider Reduced Insurance Requirements — Contract ' . $contractNumber;
+            $mail->Body = "
+                <p>Hello {$toName},</p>
+                <p>Please consider reduced insurance requirements for the following contract:</p>
+                <p><strong>{$safeNumber} &mdash; {$safeLabel}</strong></p>
+                <p><a href=\"{$safeUrl}\">Click here to view the contract</a></p>
+                <p>Contact <strong>{$safeSender}</strong> for additional details.</p>
+            ";
+            $mail->AltBody =
+                "Hello {$toName},\n\n" .
+                "Please consider reduced insurance requirements for the following contract:\n" .
+                "{$contractNumber} -- " . strip_tags($contractLabel) . "\n\n" .
+                "View the contract here:\n{$contractUrl}\n\n" .
+                "Contact {$senderName} for additional details.\n";
+        } else {
+            $mail->Subject = 'Action Required: Risk Manager Approval Needed — Contract ' . $contractNumber;
+            $mail->Body = "
+                <p>Hello {$toName},</p>
+                <p>Your Risk Manager approval is needed for the following contract:</p>
+                <p><strong>{$safeNumber} &mdash; {$safeLabel}</strong></p>
+                <p><a href=\"{$safeUrl}\">Click here to review and approve the contract</a></p>
+                <p>Contact <strong>{$safeSender}</strong> for additional details.</p>
+            ";
+            $mail->AltBody =
+                "Hello {$toName},\n\n" .
+                "Your Risk Manager approval is needed for:\n" .
+                "{$contractNumber} -- " . strip_tags($contractLabel) . "\n\n" .
+                "Review the contract here:\n{$contractUrl}\n\n" .
+                "Contact {$senderName} for additional details.\n";
+        }
 
         $mail->send();
     }
