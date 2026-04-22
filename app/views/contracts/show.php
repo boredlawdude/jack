@@ -432,16 +432,22 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
                         : '<span class="text-muted small">—</span>' ?>
                   </td>
                   <td>
-                    <?= $approvedDate
-                        ? '<span class="text-success fw-semibold">' . h($approvedDate) . '</span>'
-                        : '<span class="text-muted">Not approved</span>' ?>
+                    <?php if ($approvedDate): ?>
+                      <span class="text-success fw-semibold"><?= date('m/d/Y', strtotime($approvedDate)) ?></span>
+                    <?php else: ?>
+                      <span class="text-muted">Not approved</span>
+                    <?php endif; ?>
                   </td>
                   <td class="text-end">
                     <?php if (is_system_admin()): ?>
-                      <button class="btn btn-sm btn-outline-secondary"
-                              onclick="openApprovalModal('<?= h($key) ?>', '<?= h($meta['label']) ?>', '<?= h($approvedDate ?? '') ?>')">
-                        <?= $approvedDate ? 'Change' : 'Stamp' ?>
-                      </button>
+                      <form method="post" action="/index.php?page=approval_stamp" class="d-inline">
+                        <input type="hidden" name="contract_id" value="<?= (int)$contract['contract_id'] ?>">
+                        <input type="hidden" name="approval_type" value="<?= h($key) ?>">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit"
+                                onclick="return confirm('Stamp <?= h($meta['label']) ?> approval as today?')">
+                          <?= $approvedDate ? 'Re-stamp' : 'Stamp' ?>
+                        </button>
+                      </form>
                     <?php endif; ?>
                   </td>
                 </tr>
@@ -451,37 +457,7 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
         </div>
       </div>
 
-      <!-- Approval stamp modal -->
-      <div class="modal fade" id="approvalStampModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-          <form method="post" action="/index.php?page=approval_stamp" class="modal-content">
-            <input type="hidden" name="contract_id" value="<?= (int)$contract['contract_id'] ?>">
-            <input type="hidden" name="approval_type" id="approvalStampType">
-            <div class="modal-header">
-              <h5 class="modal-title" id="approvalStampTitle">Set Approval Date</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-              <label class="form-label fw-semibold" id="approvalStampLabel"></label>
-              <input type="date" class="form-control mt-2" name="approval_date" id="approvalStampDate">
-              <div class="form-text mt-1">Leave blank to clear the approval date.</div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-              <button class="btn btn-primary">Save</button>
-            </div>
-          </form>
-        </div>
-      </div>
-      <script>
-      function openApprovalModal(key, label, currentDate) {
-          document.getElementById('approvalStampType').value        = key;
-          document.getElementById('approvalStampTitle').textContent = 'Set ' + label + ' Approval Date';
-          document.getElementById('approvalStampLabel').textContent = label + ' Approval Date';
-          document.getElementById('approvalStampDate').value        = currentDate || '';
-          new bootstrap.Modal(document.getElementById('approvalStampModal')).show();
-      }
-      </script>
+
 
     </div>
 

@@ -113,9 +113,8 @@ class ApprovalRulesController
             http_response_code(405); exit;
         }
 
-        $contractId    = (int)($_POST['contract_id'] ?? 0);
-        $approvalType  = trim($_POST['approval_type'] ?? '');
-        $approvalDate  = trim($_POST['approval_date'] ?? '');
+        $contractId   = (int)($_POST['contract_id'] ?? 0);
+        $approvalType = trim($_POST['approval_type'] ?? '');
 
         $allowedCols = [
             'manager'      => 'manager_approval_date',
@@ -131,23 +130,23 @@ class ApprovalRulesController
             exit;
         }
 
-        // Validate date or allow clearing (empty = NULL)
-        $dateVal = null;
-        if ($approvalDate !== '') {
-            $d = DateTime::createFromFormat('Y-m-d', $approvalDate);
-            if (!$d || $d->format('Y-m-d') !== $approvalDate) {
-                $_SESSION['flash_errors'] = ['Invalid date format.'];
-                header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
-                exit;
-            }
-            $dateVal = $approvalDate;
-        }
+        $dateVal = date('Y-m-d'); // always stamp today
 
         $col = $allowedCols[$approvalType];
         $this->db->prepare("UPDATE contracts SET `$col` = ? WHERE contract_id = ?")->execute([$dateVal, $contractId]);
 
-        $label = self::APPROVAL_LABELS[$approvalType] ?? $approvalType;
-        $_SESSION['flash_messages'] = [$dateVal ? "$label approval date set to $dateVal." : "$label approval date cleared."];
+        // Log to contract history
+        $person    = current_person();
+        $personName = trim(($person['first_name'] ?? '') . ' ' . ($person['last_name'] ?? ''));
+        if (empty($personName)) $personName = $person['display_name'] ?? $person['email'] ?? 'Unknown';
+        $label     = self::APPROVAL_LABELS[$approvalType] ?? $approvalType;
+        $personId  = !empty($person['person_id']) ? (int)$person['person_id'] : null;
+        $this->db->prepare(
+            "INSERT INTO contract_status_history (contract_id, event_type, old_status, new_status, changed_by, changed_at, notes)
+             VALUES (?, 'approval', NULL, NULL, ?, NOW(), ?)"
+        )->execute([$contractId, $personId, "$label approved by $personName on $dateVal"]);
+
+        $_SESSION['flash_messages'] = ["$label approval stamped for $dateVal."];
         header('Location: /index.php?page=contracts_show&contract_id=' . $contractId);
         exit;
     }
