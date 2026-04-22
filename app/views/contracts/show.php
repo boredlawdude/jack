@@ -437,7 +437,7 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
                         : '<span class="text-muted">Not approved</span>' ?>
                   </td>
                   <td class="text-end">
-                    <?php if ($isRequired || $approvedDate): ?>
+                    <?php if (is_system_admin()): ?>
                       <button class="btn btn-sm btn-outline-secondary"
                               onclick="openApprovalModal('<?= h($key) ?>', '<?= h($meta['label']) ?>', '<?= h($approvedDate ?? '') ?>')">
                         <?= $approvedDate ? 'Change' : 'Stamp' ?>
@@ -828,3 +828,5 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
   </div>
 
 </div>
+
+<?php require APP_ROOT . '/app/views/layouts/footer.php'; ?>

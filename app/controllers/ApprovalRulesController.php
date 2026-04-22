@@ -106,6 +106,9 @@ class ApprovalRulesController
     public function stampApproval(): void
     {
         require_login();
+        if (!is_system_admin()) {
+            http_response_code(403); exit;
+        }
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             http_response_code(405); exit;
         }
