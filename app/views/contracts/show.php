@@ -80,7 +80,12 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
 
             <div class="col-md-6">
               <div class="small text-muted">Contract Type</div>
-              <div><?= h($contract['contract_type_name'] ?? '') ?: '—' ?></div>
+              <div>
+                <?= h($contract['contract_type_name'] ?? '') ?: '—' ?>
+                <?php if (!empty($contract['use_standard_contract'])): ?>
+                  <span class="badge text-bg-info ms-1">Standard Contract</span>
+                <?php endif; ?>
+              </div>
             </div>
              <div class="col-md-6">
             <div class="small text-muted">Counterparty Primary Contact</div>

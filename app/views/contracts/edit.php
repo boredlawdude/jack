@@ -75,6 +75,15 @@ if (!function_exists('h')) {
                         </option>
                     <?php endforeach; ?>
                 </select>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="use_standard_contract"
+                           id="use_standard_contract" value="1"
+                           <?= !empty($contract['use_standard_contract']) ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="use_standard_contract">
+                        Use Standard Contract
+                        <span class="text-muted small d-block">Waives approvals flagged as standard-contract exempt</span>
+                    </label>
+                </div>
             </div>
 
             <div class="col-md-4">

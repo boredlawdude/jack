@@ -8,6 +8,11 @@ if (!function_exists('h')) {
 $fieldOptions    = ApprovalRulesController::FIELD_OPTIONS;
 $approvalLabels  = ApprovalRulesController::APPROVAL_LABELS;
 $operators       = ApprovalRulesController::OPERATORS;
+// $contractTypes is passed by the controller as array of [contract_type_id, contract_type]
+$contractTypesById = [];
+foreach (($contractTypes ?? []) as $ct) {
+    $contractTypesById[(int)$ct['contract_type_id']] = $ct['contract_type'];
+}
 ?>
 
 <div class="container py-4">
@@ -45,6 +50,7 @@ $operators       = ApprovalRulesController::OPERATORS;
             <th>Rule Name</th>
             <th>When…</th>
             <th>Requires</th>
+            <th class="text-center">Waived if<br>Std Contract?</th>
             <th class="text-center">Active</th>
             <th class="text-center">Order</th>
             <th style="width:160px;"></th>
@@ -60,11 +66,20 @@ $operators       = ApprovalRulesController::OPERATORS;
                 <td>
                   <span class="text-muted"><?= h($fieldOptions[$rule['contract_field']] ?? $rule['contract_field']) ?></span>
                   <strong class="mx-1"><?= h($rule['operator']) ?></strong>
-                  <?= h(number_format((float)$rule['threshold_value'], 0)) ?>
-                  <?= $rule['contract_field'] === 'total_contract_value' ? '<span class="text-muted small">(USD)</span>' : '' ?>
+                  <?php if ($rule['contract_field'] === 'contract_type_id'): ?>
+                    <?= h($contractTypesById[(int)$rule['threshold_value']] ?? 'Type #' . (int)$rule['threshold_value']) ?>
+                  <?php else: ?>
+                    <?= h(number_format((float)$rule['threshold_value'], 0)) ?>
+                    <?= $rule['contract_field'] === 'total_contract_value' ? '<span class="text-muted small">(USD)</span>' : '' ?>
+                  <?php endif; ?>
                 </td>
                 <td>
                   <span class="badge text-bg-primary"><?= h($approvalLabels[$rule['required_approval']] ?? $rule['required_approval']) ?></span>
+                </td>
+                <td class="text-center">
+                  <?= !empty($rule['waived_by_standard_contract'])
+                    ? '<span class="badge text-bg-info">Yes</span>'
+                    : '<span class="text-muted small">—</span>' ?>
                 </td>
                 <td class="text-center">
                   <?= (int)$rule['is_active'] === 1
@@ -95,7 +110,7 @@ $operators       = ApprovalRulesController::OPERATORS;
     <div class="card-header bg-white fw-semibold">Add New Rule</div>
     <div class="card-body">
       <form method="post" action="/index.php?page=approval_rules_store">
-        <?= _approval_rule_fields(null, $fieldOptions, $approvalLabels, $operators) ?>
+        <?= _approval_rule_fields(null, $fieldOptions, $approvalLabels, $operators, $contractTypes ?? []) ?>
         <div class="mt-3">
           <button class="btn btn-primary">Add Rule</button>
         </div>
@@ -126,10 +141,12 @@ $operators       = ApprovalRulesController::OPERATORS;
 
 <?php
 // Helper to render the shared form fields (used both in add form and modal)
-function _approval_rule_fields(?array $rule, array $fieldOptions, array $approvalLabels, array $operators): string
+function _approval_rule_fields(?array $rule, array $fieldOptions, array $approvalLabels, array $operators, array $contractTypes = []): string
 {
     ob_start();
+    $uid = uniqid();
     $v = fn($k) => htmlspecialchars((string)($rule[$k] ?? ''), ENT_QUOTES, 'UTF-8');
+    $currentField = $rule['contract_field'] ?? 'total_contract_value';
     ?>
     <div class="row g-3">
 
@@ -141,10 +158,11 @@ function _approval_rule_fields(?array $rule, array $fieldOptions, array $approva
 
       <div class="col-md-4">
         <label class="form-label">Contract Field <span class="text-danger">*</span></label>
-        <select class="form-select" name="contract_field" required>
+        <select class="form-select" name="contract_field" id="cf_<?= $uid ?>" required
+                onchange="toggleThreshold_<?= $uid ?>(this.value)">
           <?php foreach ($fieldOptions as $key => $label): ?>
             <option value="<?= htmlspecialchars($key, ENT_QUOTES) ?>"
-              <?= ($rule['contract_field'] ?? '') === $key ? 'selected' : '' ?>>
+              <?= $currentField === $key ? 'selected' : '' ?>>
               <?= htmlspecialchars($label, ENT_QUOTES) ?>
             </option>
           <?php endforeach; ?>
@@ -163,10 +181,30 @@ function _approval_rule_fields(?array $rule, array $fieldOptions, array $approva
         </select>
       </div>
 
-      <div class="col-md-3">
+      <!-- Numeric threshold (shown for value/months) -->
+      <div class="col-md-3" id="threshNum_<?= $uid ?>"
+           style="<?= $currentField === 'contract_type_id' ? 'display:none' : '' ?>">
         <label class="form-label">Threshold Value <span class="text-danger">*</span></label>
-        <input class="form-control" name="threshold_value" type="number" step="0.01"
-               value="<?= $v('threshold_value') ?>" required placeholder="e.g. 30000">
+        <input class="form-control" name="threshold_value" id="threshNumIn_<?= $uid ?>"
+               type="number" step="0.01"
+               value="<?= $currentField !== 'contract_type_id' ? $v('threshold_value') : '' ?>"
+               placeholder="e.g. 30000"
+               <?= $currentField !== 'contract_type_id' ? 'required' : 'disabled' ?>>
+      </div>
+
+      <!-- Contract-type dropdown (shown for contract_type_id) -->
+      <div class="col-md-3" id="threshType_<?= $uid ?>"
+           style="<?= $currentField !== 'contract_type_id' ? 'display:none' : '' ?>">
+        <label class="form-label">Contract Type <span class="text-danger">*</span></label>
+        <select class="form-select" name="threshold_value" id="threshTypeIn_<?= $uid ?>"
+                <?= $currentField !== 'contract_type_id' ? 'disabled' : '' ?>>
+          <?php foreach ($contractTypes as $ct): ?>
+            <option value="<?= (int)$ct['contract_type_id'] ?>"
+              <?= ((int)($rule['threshold_value'] ?? 0) === (int)$ct['contract_type_id']) ? 'selected' : '' ?>>
+              <?= htmlspecialchars($ct['contract_type'], ENT_QUOTES) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
       </div>
 
       <div class="col-md-3">
@@ -188,13 +226,39 @@ function _approval_rule_fields(?array $rule, array $fieldOptions, array $approva
 
       <div class="col-md-2 d-flex align-items-end">
         <div class="form-check mb-2">
-          <input class="form-check-input" type="checkbox" name="is_active" id="is_active_<?= uniqid() ?>"
+          <input class="form-check-input" type="checkbox" name="is_active" id="is_active_<?= $uid ?>"
             <?= ((int)($rule['is_active'] ?? 1) === 1) ? 'checked' : '' ?>>
-          <label class="form-check-label">Active</label>
+          <label class="form-check-label" for="is_active_<?= $uid ?>">Active</label>
+        </div>
+      </div>
+
+      <div class="col-md-4 d-flex align-items-end">
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" name="waived_by_standard_contract"
+                 id="waived_<?= $uid ?>"
+            <?= !empty($rule['waived_by_standard_contract']) ? 'checked' : '' ?>>
+          <label class="form-check-label" for="waived_<?= $uid ?>">
+            Waived if "Use Standard Contract" is checked
+          </label>
         </div>
       </div>
 
     </div>
+    <script>
+    function toggleThreshold_<?= $uid ?>(field) {
+        var numDiv  = document.getElementById('threshNum_<?= $uid ?>');
+        var typeDiv = document.getElementById('threshType_<?= $uid ?>');
+        var numIn   = document.getElementById('threshNumIn_<?= $uid ?>');
+        var typeIn  = document.getElementById('threshTypeIn_<?= $uid ?>');
+        if (field === 'contract_type_id') {
+            numDiv.style.display  = 'none';  numIn.disabled  = true;  numIn.required  = false;
+            typeDiv.style.display = '';      typeIn.disabled = false;
+        } else {
+            numDiv.style.display  = '';      numIn.disabled  = false; numIn.required  = true;
+            typeDiv.style.display = 'none'; typeIn.disabled = true;
+        }
+    }
+    </script>
     <?php
     return ob_get_clean();
 }
@@ -205,13 +269,14 @@ function openEditModal(rule) {
     var form = document.getElementById('editRuleForm');
     form.action = '/index.php?page=approval_rules_update&rule_id=' + rule.rule_id;
 
-    // Build the field HTML server-side equivalent via a fetch or just reload with pre-fill.
-    // Instead, populate the modal body with a clone of the add-form fields filled via JS.
     var body = document.getElementById('editRuleBody');
 
     var fieldOptions    = <?= json_encode(ApprovalRulesController::FIELD_OPTIONS) ?>;
     var approvalLabels  = <?= json_encode(ApprovalRulesController::APPROVAL_LABELS) ?>;
     var operators       = <?= json_encode(ApprovalRulesController::OPERATORS) ?>;
+    var contractTypes   = <?= json_encode(array_values($contractTypes ?? [])) ?>;
+
+    var isTypeField = (rule.contract_field === 'contract_type_id');
 
     var html = '<div class="row g-3">';
 
@@ -219,7 +284,8 @@ function openEditModal(rule) {
           + '<input class="form-control" name="rule_name" value="' + escHtml(rule.rule_name) + '" required></div>';
 
     // contract_field select
-    html += '<div class="col-md-4"><label class="form-label">Contract Field</label><select class="form-select" name="contract_field">';
+    html += '<div class="col-md-4"><label class="form-label">Contract Field</label>'
+          + '<select class="form-select" name="contract_field" onchange="editModalToggleThreshold(this.value)">';
     for (var k in fieldOptions) {
         html += '<option value="' + k + '"' + (rule.contract_field === k ? ' selected' : '') + '>' + escHtml(fieldOptions[k]) + '</option>';
     }
@@ -232,8 +298,24 @@ function openEditModal(rule) {
     }
     html += '</select></div>';
 
-    html += '<div class="col-md-3"><label class="form-label">Threshold</label>'
-          + '<input class="form-control" name="threshold_value" type="number" step="0.01" value="' + escHtml(rule.threshold_value) + '" required></div>';
+    // Numeric threshold
+    html += '<div class="col-md-3" id="editThreshNum" style="' + (isTypeField ? 'display:none' : '') + '">'
+          + '<label class="form-label">Threshold</label>'
+          + '<input class="form-control" name="threshold_value" id="editThreshNumIn" type="number" step="0.01"'
+          + ' value="' + (isTypeField ? '' : escHtml(rule.threshold_value)) + '"'
+          + (isTypeField ? ' disabled' : ' required') + '></div>';
+
+    // Contract-type select
+    html += '<div class="col-md-3" id="editThreshType" style="' + (isTypeField ? '' : 'display:none') + '">'
+          + '<label class="form-label">Contract Type</label>'
+          + '<select class="form-select" name="threshold_value" id="editThreshTypeIn"'
+          + (isTypeField ? '' : ' disabled') + '>';
+    contractTypes.forEach(function(ct) {
+        html += '<option value="' + ct.contract_type_id + '"'
+              + (parseInt(rule.threshold_value) === ct.contract_type_id ? ' selected' : '') + '>'
+              + escHtml(ct.contract_type) + '</option>';
+    });
+    html += '</select></div>';
 
     // required_approval select
     html += '<div class="col-md-3"><label class="form-label">Required Approval</label><select class="form-select" name="required_approval">';
@@ -249,11 +331,32 @@ function openEditModal(rule) {
           + '<input class="form-check-input" type="checkbox" name="is_active"' + (parseInt(rule.is_active) === 1 ? ' checked' : '') + '>'
           + '<label class="form-check-label">Active</label></div></div>';
 
+    html += '<div class="col-md-6 d-flex align-items-end"><div class="form-check mb-2">'
+          + '<input class="form-check-input" type="checkbox" name="waived_by_standard_contract"'
+          + (parseInt(rule.waived_by_standard_contract) === 1 ? ' checked' : '') + '>'
+          + '<label class="form-check-label">Waived if &ldquo;Use Standard Contract&rdquo; is checked</label>'
+          + '</div></div>';
+
     html += '</div>';
 
     body.innerHTML = html;
 
     new bootstrap.Modal(document.getElementById('editRuleModal')).show();
+}
+
+function editModalToggleThreshold(field) {
+    var numDiv  = document.getElementById('editThreshNum');
+    var typeDiv = document.getElementById('editThreshType');
+    var numIn   = document.getElementById('editThreshNumIn');
+    var typeIn  = document.getElementById('editThreshTypeIn');
+    if (!numDiv || !typeDiv) return;
+    if (field === 'contract_type_id') {
+        numDiv.style.display  = 'none';  numIn.disabled  = true;  numIn.required  = false;
+        typeDiv.style.display = '';      typeIn.disabled = false;
+    } else {
+        numDiv.style.display  = '';      numIn.disabled  = false; numIn.required  = true;
+        typeDiv.style.display = 'none'; typeIn.disabled = true;
+    }
 }
 
 function escHtml(s) {

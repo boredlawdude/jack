@@ -9,6 +9,7 @@ class ApprovalRulesController
     public const FIELD_OPTIONS = [
         'total_contract_value' => 'Contract Value ($)',
         'renewal_term_months'  => 'Renewal Term (months)',
+        'contract_type_id'     => 'Contract Type',
     ];
 
     // Human-readable labels for approval types
@@ -33,6 +34,7 @@ class ApprovalRulesController
         $this->requireAdmin();
 
         $rules = $this->db->query("SELECT * FROM approval_rules ORDER BY sort_order, rule_id")->fetchAll(PDO::FETCH_ASSOC);
+        $contractTypes = $this->db->query("SELECT contract_type_id, contract_type FROM contract_types WHERE is_active = 1 ORDER BY contract_type")->fetchAll(PDO::FETCH_ASSOC);
         $flashMessages = $_SESSION['flash_messages'] ?? [];
         $flashErrors   = $_SESSION['flash_errors']   ?? [];
         unset($_SESSION['flash_messages'], $_SESSION['flash_errors']);
@@ -55,8 +57,8 @@ class ApprovalRulesController
         }
 
         $this->db->prepare("
-            INSERT INTO approval_rules (rule_name, contract_field, operator, threshold_value, required_approval, is_active, sort_order)
-            VALUES (:rule_name, :contract_field, :operator, :threshold_value, :required_approval, :is_active, :sort_order)
+            INSERT INTO approval_rules (rule_name, contract_field, operator, threshold_value, required_approval, is_active, sort_order, waived_by_standard_contract)
+            VALUES (:rule_name, :contract_field, :operator, :threshold_value, :required_approval, :is_active, :sort_order, :waived_by_standard_contract)
         ")->execute($data);
 
         $_SESSION['flash_messages'] = ['Rule created.'];
@@ -82,7 +84,8 @@ class ApprovalRulesController
             UPDATE approval_rules
             SET rule_name=:rule_name, contract_field=:contract_field, operator=:operator,
                 threshold_value=:threshold_value, required_approval=:required_approval,
-                is_active=:is_active, sort_order=:sort_order
+                is_active=:is_active, sort_order=:sort_order,
+                waived_by_standard_contract=:waived_by_standard_contract
             WHERE rule_id=:rule_id
         ")->execute($data);
 
@@ -160,8 +163,14 @@ class ApprovalRulesController
     {
         $rules = $db->query("SELECT * FROM approval_rules WHERE is_active = 1 ORDER BY sort_order")->fetchAll(PDO::FETCH_ASSOC);
         $required = [];
+        $isStandard = !empty($contract['use_standard_contract']);
 
         foreach ($rules as $rule) {
+            // Skip rules waived by standard contract when applicable
+            if ($isStandard && !empty($rule['waived_by_standard_contract'])) {
+                continue;
+            }
+
             $field = $rule['contract_field'];
             if (!array_key_exists($field, $contract)) continue;
 
@@ -190,13 +199,14 @@ class ApprovalRulesController
     private function collect(array $input): array
     {
         return [
-            'rule_name'         => trim((string)($input['rule_name'] ?? '')),
-            'contract_field'    => trim((string)($input['contract_field'] ?? '')),
-            'operator'          => trim((string)($input['operator'] ?? '>')),
-            'threshold_value'   => trim((string)($input['threshold_value'] ?? '')),
-            'required_approval' => trim((string)($input['required_approval'] ?? '')),
-            'is_active'         => isset($input['is_active']) ? 1 : 0,
-            'sort_order'        => (int)($input['sort_order'] ?? 0),
+            'rule_name'                   => trim((string)($input['rule_name'] ?? '')),
+            'contract_field'              => trim((string)($input['contract_field'] ?? '')),
+            'operator'                    => trim((string)($input['operator'] ?? '>')),
+            'threshold_value'             => trim((string)($input['threshold_value'] ?? '')),
+            'required_approval'           => trim((string)($input['required_approval'] ?? '')),
+            'is_active'                   => isset($input['is_active']) ? 1 : 0,
+            'sort_order'                  => (int)($input['sort_order'] ?? 0),
+            'waived_by_standard_contract' => isset($input['waived_by_standard_contract']) ? 1 : 0,
         ];
     }
 
@@ -206,7 +216,7 @@ class ApprovalRulesController
         if ($data['rule_name'] === '') $errors[] = 'Rule name is required.';
         if (!array_key_exists($data['contract_field'], self::FIELD_OPTIONS)) $errors[] = 'Invalid contract field.';
         if (!array_key_exists($data['operator'], self::OPERATORS)) $errors[] = 'Invalid operator.';
-        if ($data['threshold_value'] === '' || !is_numeric($data['threshold_value'])) $errors[] = 'Threshold must be a number.';
+        if ($data['threshold_value'] === '' || !is_numeric($data['threshold_value'])) $errors[] = 'Threshold must be a number (or a contract type ID).';
         if (!array_key_exists($data['required_approval'], self::APPROVAL_LABELS)) $errors[] = 'Invalid approval type.';
         return $errors;
     }

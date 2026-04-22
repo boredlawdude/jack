@@ -78,6 +78,7 @@ class Contract
             c.owner_primary_contact_id,
             d.department_name,
             d.department_code,
+            co.name AS counterparty_company_name,
             COALESCE(
                 NULLIF(op.full_name, ''),
                 TRIM(CONCAT(COALESCE(op.first_name, ''), ' ', COALESCE(op.last_name, '')))
@@ -85,6 +86,8 @@ class Contract
         FROM contracts c
         LEFT JOIN departments d
             ON c.department_id = d.department_id
+        LEFT JOIN companies co
+            ON c.counterparty_company_id = co.company_id
         LEFT JOIN people op
             ON c.owner_primary_contact_id = op.person_id
         LEFT JOIN contract_statuses cs
@@ -204,6 +207,7 @@ class Contract
                 end_date,
                 renewal_term_months,
                 auto_renew,
+                use_standard_contract,
                 documents_path,
                 procurement_method,
                 bid_rfp_number,
@@ -235,6 +239,7 @@ class Contract
                 :end_date,
                 :renewal_term_months,
                 :auto_renew,
+                :use_standard_contract,
                 :documents_path,
                 :procurement_method,
                 :bid_rfp_number,
@@ -282,6 +287,7 @@ class Contract
                 end_date = :end_date,
                 renewal_term_months = :renewal_term_months,
                 auto_renew = :auto_renew,
+                use_standard_contract = :use_standard_contract,
                 documents_path = :documents_path,
                 procurement_method = :procurement_method,
                 bid_rfp_number = :bid_rfp_number,
@@ -345,6 +351,7 @@ class Contract
             'end_date' => $this->nullIfEmpty($data['end_date'] ?? null),
             'renewal_term_months' => $this->nullIfEmpty($data['renewal_term_months'] ?? null),
             'auto_renew' => !empty($data['auto_renew']) ? 1 : 0,
+            'use_standard_contract' => !empty($data['use_standard_contract']) ? 1 : 0,
             'documents_path' => $this->nullIfEmpty($data['documents_path'] ?? null),
             'procurement_method' => $this->nullIfEmpty($data['procurement_method'] ?? null),
             'bid_rfp_number' => $this->nullIfEmpty($data['bid_rfp_number'] ?? null),
