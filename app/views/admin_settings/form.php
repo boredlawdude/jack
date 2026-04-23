@@ -5,7 +5,10 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="h3 mb-0">System Settings – Paths & Templates</h1>
-        <a href="/contract_import.php" class="btn btn-sm btn-outline-secondary">⬆ Contract Bulk Import</a>
+        <div class="d-flex gap-2">
+            <a href="/index.php?page=contract_types" class="btn btn-sm btn-outline-secondary">Contract Types</a>
+            <a href="/contract_import.php" class="btn btn-sm btn-outline-secondary">&uarr; Contract Bulk Import</a>
+        </div>
     </div>
     <?php if (!empty($success)): ?>
         <div class="alert alert-success alert-dismissible fade show">
