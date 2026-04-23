@@ -140,6 +140,33 @@ class ContractsController
             $contract['counterparty_company_name'] = '';
         }
 
+        // Merge Development Agreement fields if this is a DA contract
+        $stmt = $this->db->prepare(
+            "SELECT contract_type FROM contract_types WHERE contract_type_id = ? LIMIT 1"
+        );
+        $stmt->execute([$contract['contract_type_id'] ?? 0]);
+        $ctName = strtolower((string)($stmt->fetchColumn() ?: ''));
+        if (str_contains($ctName, 'development agreement')) {
+            require_once APP_ROOT . '/app/models/DevelopmentAgreement.php';
+            $daModel = new DevelopmentAgreement($this->db);
+            $da = $daModel->findByContractId($contractId);
+            if ($da) {
+                // Prefix DA fields with da_ to avoid collisions, and also expose un-prefixed
+                foreach ($da as $k => $v) {
+                    $contract['da_' . $k] = $v;
+                    if (!isset($contract[$k])) {
+                        $contract[$k] = $v;
+                    }
+                }
+                // Friendly formatted versions
+                $contract['da_parkland_dedication_label'] = !empty($da['parkland_dedication']) ? 'Yes' : 'No';
+                $contract['da_transportation_tier']       = $da['transportation_tier'] ?? '';
+                $contract['da_number_of_units']           = $da['number_of_units'] ?? '';
+                $contract['da_daily_flow_maximum']        = $da['daily_flow_maximum'] !== null
+                    ? number_format((int)$da['daily_flow_maximum']) . ' gpd' : '';
+            }
+        }
+
         // Get contract type info (including template paths)
         $stmt = $this->db->prepare("SELECT * FROM contract_types WHERE contract_type_id = ? LIMIT 1");
         $stmt->execute([$contract['contract_type_id'] ?? 0]);

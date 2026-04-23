@@ -49,6 +49,9 @@
                 <div class="col-6 col-md-3">
                     <a href="/contract_import.php" class="btn btn-outline-primary w-100">Contract Bulk Import</a>
                 </div>
+                <div class="col-6 col-md-3">
+                    <a href="/index.php?page=merge_field_reference" class="btn btn-outline-secondary w-100">Merge Field Reference</a>
+                </div>
             </div>
         </div>
     </div>

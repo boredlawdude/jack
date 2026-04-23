@@ -179,6 +179,10 @@ switch ($page) {
         $ContractTypesController->delete((int)($_GET['contract_type_id'] ?? 0));
         break;
 
+    case 'merge_field_reference':
+        require_once APP_ROOT . '/app/views/admin/merge_field_reference.php';
+        break;
+
     case 'approval_rules':
         require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
         (new ApprovalRulesController())->index();
