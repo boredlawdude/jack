@@ -159,7 +159,7 @@ $userName = h($person['name'] ?? $person['email'] ?? 'Unknown User');
                         <th style="width:32px;"><input type="checkbox" id="dashSelectAll" class="form-check-input"></th>
                         <th style="width:180px;">Contract #</th>
                         <th style="width:120px;">Status</th>
-                        <th style="width:160px;">Name</th>
+                        <th style="width:320px;">Name</th>
                         <th style="width:55px;">Dept</th>
                         <th style="width:90px;">Responsible</th>
                         <th style="width:75px;">Value</th>
@@ -178,7 +178,12 @@ $userName = h($person['name'] ?? $person['email'] ?? 'Unknown User');
                         <td><input type="checkbox" class="form-check-input dash-row-check" value="<?= (int)$c['contract_id'] ?>"></td>
                         <td><a href="/index.php?page=contracts_show&contract_id=<?= (int)$c['contract_id'] ?>" class="text-decoration-underline fw-semibold"><?= h($c['contract_number'] ?? '') ?></a></td>
                         <td><span class="badge text-bg-<?= dashboard_status_badge($c['status_name'] ?? '') ?>"><?= h($c['status_name'] ?? '') ?></span></td>
-                        <td class="<?= $isStale ? 'text-danger' : '' ?>"><span title="<?= h($c['name'] ?? '') ?>"><?= h(mb_strlen($c['name'] ?? '') > 30 ? mb_substr($c['name'], 0, 30) . '…' : ($c['name'] ?? '')) ?></span></td>
+                        <td class="<?= $isStale ? 'text-danger' : '' ?>">
+                            <?php if (!empty($c['counterparty_company_name'])): ?>
+                                <small class="text-muted d-block"><?= h($c['counterparty_company_name']) ?></small>
+                            <?php endif; ?>
+                            <span title="<?= h($c['name'] ?? '') ?>"><?= h(mb_strlen($c['name'] ?? '') > 70 ? mb_substr($c['name'], 0, 70) . '…' : ($c['name'] ?? '')) ?></span>
+                        </td>
                         <td><span title="<?= h($c['department_name'] ?? '') ?>"><?= h($c['department_code'] ?? $c['department_name'] ?? '') ?></span></td>
                         <td><?= h($c['owner_primary_contact_name'] ?? '') ?></td>
                         <td>

@@ -73,6 +73,16 @@ foreach (($contractTypes ?? []) as $ct) {
                     <?= h(number_format((float)$rule['threshold_value'], 0)) ?>
                     <?= $rule['contract_field'] === 'total_contract_value' ? '<span class="text-muted small">(USD)</span>' : '' ?>
                   <?php endif; ?>
+                  <?php if (!empty($rule['contract_field_2']) && !empty($rule['operator_2']) && isset($rule['threshold_value_2'])): ?>
+                    <span class="text-muted small ms-1">AND</span>
+                    <span class="text-muted"><?= h($fieldOptions[$rule['contract_field_2']] ?? $rule['contract_field_2']) ?></span>
+                    <strong class="mx-1"><?= h($rule['operator_2']) ?></strong>
+                    <?php if ($rule['contract_field_2'] === 'contract_type_id'): ?>
+                      <?= h($contractTypesById[(int)$rule['threshold_value_2']] ?? 'Type #' . (int)$rule['threshold_value_2']) ?>
+                    <?php else: ?>
+                      <?= h(number_format((float)$rule['threshold_value_2'], 0)) ?>
+                    <?php endif; ?>
+                  <?php endif; ?>
                 </td>
                 <td>
                   <span class="badge text-bg-primary"><?= h($approvalLabels[$rule['required_approval']] ?? $rule['required_approval']) ?></span>
@@ -230,6 +240,62 @@ function _approval_rule_fields(?array $rule, array $fieldOptions, array $approva
         <input class="form-control" name="sort_order" type="number" value="<?= $v('sort_order') ?: '0' ?>">
       </div>
 
+      <div class="col-12">
+        <hr class="my-1">
+        <div class="text-muted small mb-2">Optional: Add a second condition (AND logic — both must match)</div>
+        <div class="row g-3">
+          <?php
+            $currentField2 = $rule['contract_field_2'] ?? '';
+          ?>
+          <div class="col-md-4">
+            <label class="form-label">AND Field</label>
+            <select class="form-select" name="contract_field_2" id="cf2_<?= $uid ?>"
+                    onchange="toggleThreshold2_<?= $uid ?>(this.value)">
+              <option value="">(none)</option>
+              <?php foreach ($fieldOptions as $key => $label): ?>
+                <option value="<?= htmlspecialchars($key, ENT_QUOTES) ?>"
+                  <?= $currentField2 === $key ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($label, ENT_QUOTES) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Operator</label>
+            <select class="form-select" name="operator_2">
+              <?php foreach ($operators as $op => $label): ?>
+                <option value="<?= htmlspecialchars($op, ENT_QUOTES) ?>"
+                  <?= ($rule['operator_2'] ?? '') === $op ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($label, ENT_QUOTES) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-md-3" id="thresh2Num_<?= $uid ?>"
+               style="<?= $currentField2 === 'contract_type_id' ? 'display:none' : '' ?>">
+            <label class="form-label">Threshold</label>
+            <input class="form-control" name="threshold_value_2" id="thresh2NumIn_<?= $uid ?>"
+                   type="number" step="0.01"
+                   value="<?= $currentField2 !== 'contract_type_id' ? $v('threshold_value_2') : '' ?>"
+                   placeholder="e.g. 90000">
+          </div>
+          <div class="col-md-3" id="thresh2Type_<?= $uid ?>"
+               style="<?= $currentField2 !== 'contract_type_id' ? 'display:none' : '' ?>">
+            <label class="form-label">Contract Type</label>
+            <select class="form-select" name="threshold_value_2" id="thresh2TypeIn_<?= $uid ?>"
+                    <?= $currentField2 !== 'contract_type_id' ? 'disabled' : '' ?>>
+              <option value="">(select)</option>
+              <?php foreach ($contractTypes as $ct): ?>
+                <option value="<?= (int)$ct['contract_type_id'] ?>"
+                  <?= ((int)($rule['threshold_value_2'] ?? 0) === (int)$ct['contract_type_id']) ? 'selected' : '' ?>>
+                  <?= htmlspecialchars($ct['contract_type'], ENT_QUOTES) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="col-md-2 d-flex align-items-end">
         <div class="form-check mb-2">
           <input class="form-check-input" type="checkbox" name="is_active" id="is_active_<?= $uid ?>"
@@ -273,6 +339,23 @@ function _approval_rule_fields(?array $rule, array $fieldOptions, array $approva
         } else {
             numDiv.style.display  = '';      numIn.disabled  = false; numIn.required  = true;
             typeDiv.style.display = 'none'; typeIn.disabled = true;
+        }
+    }
+    function toggleThreshold2_<?= $uid ?>(field) {
+        var numDiv  = document.getElementById('thresh2Num_<?= $uid ?>');
+        var typeDiv = document.getElementById('thresh2Type_<?= $uid ?>');
+        var numIn   = document.getElementById('thresh2NumIn_<?= $uid ?>');
+        var typeIn  = document.getElementById('thresh2TypeIn_<?= $uid ?>');
+        if (!numDiv) return;
+        if (field === 'contract_type_id') {
+            numDiv.style.display  = 'none';  if (numIn) { numIn.disabled = true; }
+            typeDiv.style.display = '';      if (typeIn) { typeIn.disabled = false; }
+        } else if (field === '') {
+            numDiv.style.display  = 'none';  if (numIn) { numIn.disabled = true; }
+            typeDiv.style.display = 'none';  if (typeIn) { typeIn.disabled = true; }
+        } else {
+            numDiv.style.display  = '';      if (numIn) { numIn.disabled = false; }
+            typeDiv.style.display = 'none';  if (typeIn) { typeIn.disabled = true; }
         }
     }
     </script>
@@ -344,6 +427,46 @@ function openEditModal(rule) {
     html += '<div class="col-md-2"><label class="form-label">Sort Order</label>'
           + '<input class="form-control" name="sort_order" type="number" value="' + escHtml(rule.sort_order) + '"></div>';
 
+    // ── Second condition (AND) ──────────────────────────────────────────────
+    var field2    = rule.contract_field_2 || '';
+    var isType2   = (field2 === 'contract_type_id');
+    var thresh2Val = rule.threshold_value_2 || '';
+
+    html += '<div class="col-12"><hr class="my-1"><div class="text-muted small mb-2">Optional: Add a second condition (AND logic)</div>'
+          + '<div class="row g-3">';
+
+    html += '<div class="col-md-4"><label class="form-label">AND Field</label>'
+          + '<select class="form-select" name="contract_field_2" onchange="editModalToggleThreshold2(this.value)">'
+          + '<option value="">(none)</option>';
+    for (var k2 in fieldOptions) {
+        html += '<option value="' + k2 + '"' + (field2 === k2 ? ' selected' : '') + '>' + escHtml(fieldOptions[k2]) + '</option>';
+    }
+    html += '</select></div>';
+
+    html += '<div class="col-md-2"><label class="form-label">Operator</label><select class="form-select" name="operator_2">';
+    for (var op2 in operators) {
+        html += '<option value="' + op2 + '"' + ((rule.operator_2 || '') === op2 ? ' selected' : '') + '>' + op2 + '</option>';
+    }
+    html += '</select></div>';
+
+    html += '<div class="col-md-3" id="editThresh2Num" style="' + (isType2 || !field2 ? 'display:none' : '') + '">'
+          + '<label class="form-label">Threshold</label>'
+          + '<input class="form-control" name="threshold_value_2" id="editThresh2NumIn" type="number" step="0.01"'
+          + ' value="' + (isType2 ? '' : escHtml(thresh2Val)) + '"></div>';
+
+    html += '<div class="col-md-3" id="editThresh2Type" style="' + (isType2 ? '' : 'display:none') + '">'
+          + '<label class="form-label">Contract Type</label>'
+          + '<select class="form-select" name="threshold_value_2" id="editThresh2TypeIn"' + (isType2 ? '' : ' disabled') + '>'
+          + '<option value="">(select)</option>';
+    contractTypes.forEach(function(ct) {
+        html += '<option value="' + ct.contract_type_id + '"'
+              + (parseInt(thresh2Val) === ct.contract_type_id ? ' selected' : '') + '>'
+              + escHtml(ct.contract_type) + '</option>';
+    });
+    html += '</select></div>';
+
+    html += '</div></div>'; // close row g-3 + col-12
+
     html += '<div class="col-md-2 d-flex align-items-end"><div class="form-check mb-2">'
           + '<input class="form-check-input" type="checkbox" name="is_active"' + (parseInt(rule.is_active) === 1 ? ' checked' : '') + '>'
           + '<label class="form-check-label">Active</label></div></div>';
@@ -379,6 +502,24 @@ function editModalToggleThreshold(field) {
     } else {
         numDiv.style.display  = '';      numIn.disabled  = false; numIn.required  = true;
         typeDiv.style.display = 'none'; typeIn.disabled = true;
+    }
+}
+
+function editModalToggleThreshold2(field) {
+    var numDiv  = document.getElementById('editThresh2Num');
+    var typeDiv = document.getElementById('editThresh2Type');
+    var numIn   = document.getElementById('editThresh2NumIn');
+    var typeIn  = document.getElementById('editThresh2TypeIn');
+    if (!numDiv) return;
+    if (field === 'contract_type_id') {
+        numDiv.style.display  = 'none';  if (numIn) numIn.disabled = true;
+        typeDiv.style.display = '';      if (typeIn) typeIn.disabled = false;
+    } else if (field === '') {
+        numDiv.style.display  = 'none';  if (numIn) numIn.disabled = true;
+        typeDiv.style.display = 'none';  if (typeIn) typeIn.disabled = true;
+    } else {
+        numDiv.style.display  = '';      if (numIn) numIn.disabled = false;
+        typeDiv.style.display = 'none';  if (typeIn) typeIn.disabled = true;
     }
 }
 

@@ -123,8 +123,14 @@ function status_badge(string $status): string {
             <a href="#" id="contractsBtnEdit" class="btn btn-sm btn-outline-primary disabled">Edit</a>
             <button type="button" id="contractsBtnDelete" class="btn btn-sm btn-outline-danger disabled">Delete</button>
         </div>
-        <span class="fw-semibold">Contracts</span>
-        <a href="/index.php?page=contracts_create" class="btn btn-sm btn-primary">+ New Contract</a>
+        <span class="fw-semibold">
+            Contracts
+            <span class="text-muted fw-normal small ms-1" id="contractsRowCount"></span>
+        </span>
+        <div class="d-flex gap-2 align-items-center">
+            <a href="/index.php?page=contracts" class="btn btn-sm btn-outline-secondary">Clear Filters</a>
+            <a href="/index.php?page=contracts_create" class="btn btn-sm btn-primary">+ New Contract</a>
+        </div>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -134,7 +140,7 @@ function status_badge(string $status): string {
                         <th style="width:32px;"><input type="checkbox" id="contractsSelectAll" class="form-check-input"></th>
                         <th style="width:180px;">Contract #</th>
                         <th style="width:120px;">Status</th>
-                        <th style="width:280px;">Name</th>
+                        <th style="width:420px;">Name</th>
                         <th style="width:55px;">Dept</th>
                         <th style="width:90px;">Responsible</th>
                         <th style="width:75px;">Value</th>
@@ -153,10 +159,10 @@ function status_badge(string $status): string {
                         <td><a href="/index.php?page=contracts_show&contract_id=<?= (int)$c['contract_id'] ?>" class="text-decoration-underline fw-semibold"><?= h($c['contract_number'] ?? '') ?></a></td>
                         <td><span class="badge text-bg-<?= status_badge($c['status_name'] ?? '') ?>"><?= h($c['status_name'] ?? '') ?></span></td>
                         <td>
-                            <span title="<?= h($c['name'] ?? '') ?>"><?= h(mb_strlen($c['name'] ?? '') > 55 ? mb_substr($c['name'], 0, 55) . '…' : ($c['name'] ?? '')) ?></span>
                             <?php if (!empty($c['counterparty_company_name'])): ?>
-                                <br><small class="text-muted"><?= h($c['counterparty_company_name']) ?></small>
+                                <small class="text-muted d-block"><?= h($c['counterparty_company_name']) ?></small>
                             <?php endif; ?>
+                            <span title="<?= h($c['name'] ?? '') ?>"><?= h(mb_strlen($c['name'] ?? '') > 90 ? mb_substr($c['name'], 0, 90) . '…' : ($c['name'] ?? '')) ?></span>
                         </td>
                         <td><span title="<?= h($c['department_name'] ?? '') ?>"><?= h($c['department_code'] ?? $c['department_name'] ?? '') ?></span></td>
                         <td><?= h($c['owner_primary_contact_name'] ?? '') ?></td>
@@ -247,6 +253,8 @@ function status_badge(string $status): string {
             if (show) visible++;
         });
         if (noResults) noResults.classList.toggle('d-none', visible > 0);
+        const countEl = document.getElementById('contractsRowCount');
+        if (countEl) countEl.textContent = '(' + visible + ' shown)';
         // Uncheck hidden rows
         document.querySelectorAll('.contracts-row-check').forEach(function (cb) {
             if (cb.closest('tr').style.display === 'none') cb.checked = false;

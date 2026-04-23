@@ -81,8 +81,8 @@ class ApprovalRulesController
         }
 
         $this->db->prepare("
-            INSERT INTO approval_rules (rule_name, contract_field, operator, threshold_value, required_approval, is_active, sort_order, waived_by_standard_contract, waived_by_min_insurance)
-            VALUES (:rule_name, :contract_field, :operator, :threshold_value, :required_approval, :is_active, :sort_order, :waived_by_standard_contract, :waived_by_min_insurance)
+            INSERT INTO approval_rules (rule_name, contract_field, operator, threshold_value, contract_field_2, operator_2, threshold_value_2, required_approval, is_active, sort_order, waived_by_standard_contract, waived_by_min_insurance)
+            VALUES (:rule_name, :contract_field, :operator, :threshold_value, :contract_field_2, :operator_2, :threshold_value_2, :required_approval, :is_active, :sort_order, :waived_by_standard_contract, :waived_by_min_insurance)
         ")->execute($data);
 
         $_SESSION['flash_messages'] = ['Rule created.'];
@@ -107,7 +107,9 @@ class ApprovalRulesController
         $this->db->prepare("
             UPDATE approval_rules
             SET rule_name=:rule_name, contract_field=:contract_field, operator=:operator,
-                threshold_value=:threshold_value, required_approval=:required_approval,
+                threshold_value=:threshold_value,
+                contract_field_2=:contract_field_2, operator_2=:operator_2, threshold_value_2=:threshold_value_2,
+                required_approval=:required_approval,
                 is_active=:is_active, sort_order=:sort_order,
                 waived_by_standard_contract=:waived_by_standard_contract,
                 waived_by_min_insurance=:waived_by_min_insurance
@@ -240,6 +242,22 @@ class ApprovalRulesController
                 default => false,
             };
 
+            // Evaluate optional second condition (AND logic)
+            if ($match && !empty($rule['contract_field_2']) && !empty($rule['operator_2']) && isset($rule['threshold_value_2'])) {
+                $field2      = $rule['contract_field_2'];
+                $contractVal2 = (float)($contract[$field2] ?? 0);
+                $threshold2  = (float)$rule['threshold_value_2'];
+                $match = match ($rule['operator_2']) {
+                    '>'  => $contractVal2 >  $threshold2,
+                    '>=' => $contractVal2 >= $threshold2,
+                    '<'  => $contractVal2 <  $threshold2,
+                    '<=' => $contractVal2 <= $threshold2,
+                    '='  => $contractVal2 == $threshold2,
+                    '!=' => $contractVal2 != $threshold2,
+                    default => false,
+                };
+            }
+
             if ($match) {
                 $required[] = $rule['required_approval'];
             }
@@ -251,11 +269,19 @@ class ApprovalRulesController
     // ── Private helpers ───────────────────────────────────────────────────────
     private function collect(array $input): array
     {
+        $field2 = trim((string)($input['contract_field_2'] ?? ''));
+        $op2    = trim((string)($input['operator_2'] ?? ''));
+        $val2   = trim((string)($input['threshold_value_2'] ?? ''));
+        // Only save second condition if all three parts are provided
+        $hasSecond = ($field2 !== '' && $op2 !== '' && $val2 !== '');
         return [
             'rule_name'                   => trim((string)($input['rule_name'] ?? '')),
             'contract_field'              => trim((string)($input['contract_field'] ?? '')),
             'operator'                    => trim((string)($input['operator'] ?? '>')),
             'threshold_value'             => trim((string)($input['threshold_value'] ?? '')),
+            'contract_field_2'            => $hasSecond ? $field2 : null,
+            'operator_2'                  => $hasSecond ? $op2    : null,
+            'threshold_value_2'           => $hasSecond ? $val2   : null,
             'required_approval'           => trim((string)($input['required_approval'] ?? '')),
             'is_active'                   => isset($input['is_active']) ? 1 : 0,
             'sort_order'                  => (int)($input['sort_order'] ?? 0),
@@ -272,6 +298,13 @@ class ApprovalRulesController
         if (!array_key_exists($data['operator'], self::OPERATORS)) $errors[] = 'Invalid operator.';
         if ($data['threshold_value'] === '' || !is_numeric($data['threshold_value'])) $errors[] = 'Threshold must be a number (or a contract type ID).';
         if (!array_key_exists($data['required_approval'], self::APPROVAL_LABELS)) $errors[] = 'Invalid approval type.';
+        // Validate second condition only if partially filled
+        $has2 = $data['contract_field_2'] !== null;
+        if ($has2) {
+            if (!array_key_exists($data['contract_field_2'], self::FIELD_OPTIONS)) $errors[] = 'Invalid second condition field.';
+            if (!array_key_exists($data['operator_2'], self::OPERATORS)) $errors[] = 'Invalid second condition operator.';
+            if (!is_numeric($data['threshold_value_2'])) $errors[] = 'Second condition threshold must be a number.';
+        }
         return $errors;
     }
 
