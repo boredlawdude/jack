@@ -530,6 +530,13 @@ class DocuSignController
                 WHERE  contract_document_id = :doc_id
             ");
             $upd->execute([':env_id' => $envelopeId, ':doc_id' => $docId]);
+
+            $person   = current_person();
+            $personId = (int)($person['person_id'] ?? 0) ?: null;
+            $this->db->prepare(
+                "INSERT INTO contract_status_history (contract_id, event_type, old_status, new_status, changed_by, changed_at, notes)
+                 VALUES (?, 'docusign', NULL, 'sent', ?, NOW(), ?)"
+            )->execute([$contractId, $personId, 'Sent for signature via DocuSign (envelope ' . $envelopeId . ')']);
         }
 
         unset($_SESSION['ds_pending_doc_id'], $_SESSION['ds_pending_contract_id']);
@@ -601,6 +608,14 @@ class DocuSignController
                 UPDATE contract_documents SET docusign_status = 'voided' WHERE contract_document_id = :id
             ");
             $upd->execute([':id' => $docId]);
+
+            $person   = current_person();
+            $personId = (int)($person['person_id'] ?? 0) ?: null;
+            $this->db->prepare(
+                "INSERT INTO contract_status_history (contract_id, event_type, old_status, new_status, changed_by, changed_at, notes)
+                 VALUES (?, 'docusign', 'sent', 'voided', ?, NOW(), ?)"
+            )->execute([$contractId, $personId, 'DocuSign envelope voided. Reason: ' . $voidReason]);
+
             $_SESSION['docusign_flash_success'] = 'Envelope voided successfully.';
         } else {
             $errData = json_decode((string)$resp, true);
