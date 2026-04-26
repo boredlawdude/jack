@@ -394,7 +394,7 @@ class DocuSignController
             $filePath = rtrim((string)APP_ROOT, '/') . '/' . ltrim($filePath, '/');
         }
         if (!is_file($filePath)) {
-            $_SESSION['docusign_flash_error'] = 'Document file not found on disk.';
+            $_SESSION['docusign_flash_error'] = 'Document file not found on disk. Looking for: ' . htmlspecialchars($filePath, ENT_QUOTES, 'UTF-8');
             header('Location: /index.php?page=docusign_send');
             exit;
         }
