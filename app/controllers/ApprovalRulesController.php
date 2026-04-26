@@ -63,6 +63,48 @@ class ApprovalRulesController
         $flashErrors   = $_SESSION['flash_errors']   ?? [];
         unset($_SESSION['flash_messages'], $_SESSION['flash_errors']);
 
+        // ── Last bulk re-apply info (for undo button) ─────────────────────
+        // 1. Prefer history records from a logged re-apply
+        $historyRow = $this->db->query(
+            "SELECT MAX(changed_at) as last_at, COUNT(*) as stamp_count
+               FROM contract_status_history
+              WHERE notes LIKE '%[bulk re-apply from Approval Rules admin page]%'"
+        )->fetch(PDO::FETCH_ASSOC);
+
+        $lastReapplyAt    = null;
+        $lastReapplyCount = 0;
+        $revertByDate     = null;
+
+        if ($historyRow && (int)$historyRow['stamp_count'] > 0) {
+            $lastReapplyAt    = $historyRow['last_at'];
+            $lastReapplyCount = (int)$historyRow['stamp_count'];
+            $revertByDate     = date('Y-m-d', strtotime($lastReapplyAt));
+        } else {
+            // 2. Fallback: find the most recent single date shared by many approval stamps
+            //    (a bulk operation fingerprint)
+            $bulkRow = $this->db->query("
+                SELECT d, SUM(n) as total_stamps FROM (
+                    SELECT manager_approval_date      AS d, COUNT(*) AS n FROM contracts WHERE manager_approval_date      IS NOT NULL GROUP BY manager_approval_date
+                    UNION ALL
+                    SELECT purchasing_approval_date   AS d, COUNT(*) AS n FROM contracts WHERE purchasing_approval_date   IS NOT NULL GROUP BY purchasing_approval_date
+                    UNION ALL
+                    SELECT legal_approval_date        AS d, COUNT(*) AS n FROM contracts WHERE legal_approval_date        IS NOT NULL GROUP BY legal_approval_date
+                    UNION ALL
+                    SELECT risk_manager_approval_date AS d, COUNT(*) AS n FROM contracts WHERE risk_manager_approval_date IS NOT NULL GROUP BY risk_manager_approval_date
+                    UNION ALL
+                    SELECT council_approval_date      AS d, COUNT(*) AS n FROM contracts WHERE council_approval_date      IS NOT NULL GROUP BY council_approval_date
+                ) sub
+                GROUP BY d HAVING total_stamps >= 5
+                ORDER BY d DESC LIMIT 1
+            ")->fetch(PDO::FETCH_ASSOC);
+
+            if ($bulkRow) {
+                $revertByDate     = $bulkRow['d'];
+                $lastReapplyAt    = $bulkRow['d'];
+                $lastReapplyCount = (int)$bulkRow['total_stamps'];
+            }
+        }
+
         require APP_ROOT . '/app/views/admin_settings/approval_rules.php';
     }
 
@@ -489,6 +531,169 @@ class ApprovalRulesController
         }
 
         $mail->send();
+    }
+
+    // ── Undo the most recent bulk re-apply ────────────────────────────────────
+    public function revertReapply(): void
+    {
+        require_login();
+        $this->requireAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405); exit;
+        }
+
+        // --- Strategy 1: history-based undo ---
+        $latestAt = $this->db->query(
+            "SELECT MAX(changed_at) FROM contract_status_history
+              WHERE notes LIKE '%[bulk re-apply from Approval Rules admin page]%'"
+        )->fetchColumn();
+
+        if ($latestAt) {
+            $batchStmt = $this->db->prepare(
+                "SELECT history_id, contract_id, notes FROM contract_status_history
+                  WHERE notes LIKE '%[bulk re-apply from Approval Rules admin page]%'
+                    AND changed_at >= DATE_SUB(?, INTERVAL 60 SECOND)"
+            );
+            $batchStmt->execute([$latestAt]);
+            $batchRecords = $batchStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $colMap = [
+                'manager'      => 'manager_approval_date',
+                'purchasing'   => 'purchasing_approval_date',
+                'legal'        => 'legal_approval_date',
+                'risk_manager' => 'risk_manager_approval_date',
+                'council'      => 'council_approval_date',
+            ];
+            $labelToKey = array_flip(self::APPROVAL_LABELS);
+            $reverted   = 0;
+            $historyIds = [];
+
+            foreach ($batchRecords as $record) {
+                $approvalKey = null;
+                foreach ($labelToKey as $label => $key) {
+                    if (str_starts_with($record['notes'], $label . ' approval stamped')) {
+                        $approvalKey = $key;
+                        break;
+                    }
+                }
+                if ($approvalKey === null || !isset($colMap[$approvalKey])) continue;
+                $col = $colMap[$approvalKey];
+                $this->db->prepare("UPDATE contracts SET `$col` = NULL WHERE contract_id = ?")->execute([$record['contract_id']]);
+                $historyIds[] = (int)$record['history_id'];
+                $reverted++;
+            }
+
+            if (!empty($historyIds)) {
+                $placeholders = implode(',', array_fill(0, count($historyIds), '?'));
+                $this->db->prepare("DELETE FROM contract_status_history WHERE history_id IN ($placeholders)")->execute($historyIds);
+            }
+
+            if ($reverted > 0) {
+                $_SESSION['flash_messages'] = ["Undo complete. Cleared $reverted approval stamp(s) from the last bulk re-apply. Pending approvals will reappear on the dashboard."];
+                $this->redirect();
+                return;
+            }
+        }
+
+        // --- Strategy 2: date-based undo (no history records) ---
+        $revertDate = trim($_POST['revert_date'] ?? '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $revertDate)) {
+            $_SESSION['flash_errors'] = ['No bulk re-apply records found to undo.'];
+            $this->redirect();
+            return;
+        }
+
+        $cols = [
+            'manager_approval_date',
+            'purchasing_approval_date',
+            'legal_approval_date',
+            'risk_manager_approval_date',
+            'council_approval_date',
+        ];
+        $cleared = 0;
+        foreach ($cols as $col) {
+            $stmt = $this->db->prepare("UPDATE contracts SET `$col` = NULL WHERE `$col` = ?");
+            $stmt->execute([$revertDate]);
+            $cleared += $stmt->rowCount();
+        }
+
+        if ($cleared === 0) {
+            $_SESSION['flash_messages'] = ['Nothing to undo — no approval stamps matched that date.'];
+        } else {
+            $_SESSION['flash_messages'] = ["Undo complete. Cleared $cleared approval stamp(s) dated $revertDate. Pending approvals will reappear on the dashboard."];
+        }
+
+        $this->redirect();
+    }
+
+    // ── Bulk-stamp missing required approvals on all existing contracts ───────
+    public function reapplyRules(): void
+    {
+        require_login();
+        $this->requireAdmin();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405); exit;
+        }
+
+        $contracts = $this->db->query("
+            SELECT contract_id, total_contract_value, renewal_term_months, contract_type_id,
+                   use_standard_contract, minimum_insurance_coi,
+                   manager_approval_date, purchasing_approval_date, legal_approval_date,
+                   risk_manager_approval_date, council_approval_date
+            FROM contracts
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        $colMap = [
+            'manager'      => 'manager_approval_date',
+            'purchasing'   => 'purchasing_approval_date',
+            'legal'        => 'legal_approval_date',
+            'risk_manager' => 'risk_manager_approval_date',
+            'council'      => 'council_approval_date',
+        ];
+
+        $person     = current_person();
+        $personName = trim(($person['first_name'] ?? '') . ' ' . ($person['last_name'] ?? ''));
+        if (empty(trim($personName))) $personName = $person['display_name'] ?? $person['email'] ?? 'Unknown';
+        $personId   = !empty($person['person_id']) ? (int)$person['person_id'] : null;
+        $dateVal    = date('Y-m-d');
+
+        $logStmt = $this->db->prepare(
+            "INSERT INTO contract_status_history (contract_id, event_type, old_status, new_status, changed_by, changed_at, notes)
+             VALUES (?, 'approval', NULL, NULL, ?, NOW(), ?)"
+        );
+
+        $stamped  = 0;
+        $affected = 0;
+
+        foreach ($contracts as $contract) {
+            $required        = self::requiredApprovalsFor($this->db, $contract);
+            $contractStamped = 0;
+
+            foreach ($required as $approvalKey) {
+                $col = $colMap[$approvalKey] ?? null;
+                if ($col === null || !empty($contract[$col])) continue; // skip if unknown or already stamped
+
+                $label = self::APPROVAL_LABELS[$approvalKey] ?? $approvalKey;
+                $this->db->prepare("UPDATE contracts SET `$col` = ? WHERE contract_id = ?")->execute([$dateVal, $contract['contract_id']]);
+                $logStmt->execute([
+                    $contract['contract_id'],
+                    $personId,
+                    "$label approval stamped by $personName on $dateVal [bulk re-apply from Approval Rules admin page]",
+                ]);
+                $stamped++;
+                $contractStamped++;
+            }
+
+            if ($contractStamped > 0) $affected++;
+        }
+
+        if ($stamped === 0) {
+            $_SESSION['flash_messages'] = ['Re-apply complete. All contracts already have the required approvals stamped — no changes made.'];
+        } else {
+            $_SESSION['flash_messages'] = ["Re-apply complete. Stamped $stamped missing approval(s) across $affected contract(s)."];
+        }
+
+        $this->redirect();
     }
 
     private function requireAdmin(): void

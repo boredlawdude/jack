@@ -203,6 +203,16 @@ switch ($page) {
         (new ApprovalRulesController())->destroy((int)($_GET['rule_id'] ?? 0));
         break;
 
+    case 'approval_rules_reapply':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->reapplyRules();
+        break;
+
+    case 'approval_rules_revert':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->revertReapply();
+        break;
+
     case 'approval_stamp':
         require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
         (new ApprovalRulesController())->stampApproval();

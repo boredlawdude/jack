@@ -24,7 +24,23 @@ foreach (($contractTypes ?? []) as $ct) {
         Define threshold-based rules that determine which approvals a contract requires.
       </div>
     </div>
-    <a href="/index.php?page=admin_settings" class="btn btn-outline-secondary btn-sm">← System Settings</a>
+    <div class="d-flex gap-2 align-items-center">
+      <form method="post" action="/index.php?page=approval_rules_reapply"
+            onsubmit="return confirm('WARNING: This will MARK AS APPROVED (stamp today\'s date) on every contract that currently requires approval but has not yet been stamped.\n\nThis does NOT just recalculate rules — it permanently records approvals as if they happened today.\n\nOnly use this to backfill approvals on historical contracts you have already reviewed.\n\nAre you sure you want to bulk-approve all pending contracts?');">
+        <button class="btn btn-outline-warning btn-sm">Bulk-Stamp All Pending Approvals…</button>
+      </form>
+      <?php if (!empty($lastReapplyAt)): ?>
+        <form method="post" action="/index.php?page=approval_rules_revert"
+              onsubmit="return confirm('This will clear the <?= (int)$lastReapplyCount ?> approval stamp(s) dated <?= h(date('M j, Y', strtotime($lastReapplyAt))) ?>.\n\nPending approvals will reappear on the dashboard.\n\nContinue?');">
+          <input type="hidden" name="revert_date" value="<?= h($revertByDate ?? '') ?>">
+          <button class="btn btn-outline-danger btn-sm">
+            ↩ Undo Last Re-apply
+            <span class="text-muted ms-1 small">(<?= (int)$lastReapplyCount ?> stamps, <?= h(date('M j', strtotime($lastReapplyAt))) ?>)</span>
+          </button>
+        </form>
+      <?php endif; ?>
+      <a href="/index.php?page=admin_settings" class="btn btn-outline-secondary btn-sm">← System Settings</a>
+    </div>
   </div>
 
   <?php if (!empty($flashMessages)): ?>

@@ -104,19 +104,21 @@ class DashboardController
 
         // ── Pending approvals by role ─────────────────────────────────────
         // For each approval type the current user's roles map to, count
-        // contracts where that approval date is still NULL.
+        // contracts where that approval is required by current rules AND not yet stamped.
         require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
-        $approvalRoleMap = ApprovalRulesController::APPROVAL_ROLE_MAP;  // key => role_key|null
+        $approvalRoleMap = ApprovalRulesController::APPROVAL_ROLE_MAP;
         $approvalLabels  = ApprovalRulesController::APPROVAL_LABELS;
-        $myPendingApprovals = [];  // [['key','label','count'], ...]
+        $myPendingApprovals = [];
 
+        // Determine which approval types this user can act on
+        $userApprovalKeys = [];
         foreach ($approvalRoleMap as $approvalKey => $requiredRoleKey) {
-            // Only surface if user actually holds this role (or it has no role requirement)
             $holds = ($requiredRoleKey === null)
                 || (function_exists('person_has_role_key') && person_has_role_key($requiredRoleKey));
-            if (!$holds) continue;
+            if ($holds) $userApprovalKeys[] = $approvalKey;
+        }
 
-            // Map approval key -> column name
+        if (!empty($userApprovalKeys)) {
             $colMap = [
                 'manager'      => 'manager_approval_date',
                 'purchasing'   => 'purchasing_approval_date',
@@ -124,22 +126,37 @@ class DashboardController
                 'risk_manager' => 'risk_manager_approval_date',
                 'council'      => 'council_approval_date',
             ];
-            $col = $colMap[$approvalKey];
 
-            // Count contracts where this approval date is null
-            // (only count contracts that have at least one active approval rule requiring this type)
-            $countStmt = $this->db->prepare(
-                "SELECT COUNT(*) FROM contracts WHERE `$col` IS NULL"
-            );
-            $countStmt->execute();
-            $total = (int)$countStmt->fetchColumn();
+            // Fetch only the fields needed to evaluate rules
+            $allContracts = $this->db->query("
+                SELECT contract_id, total_contract_value, renewal_term_months, contract_type_id,
+                       use_standard_contract, minimum_insurance_coi,
+                       manager_approval_date, purchasing_approval_date, legal_approval_date,
+                       risk_manager_approval_date, council_approval_date
+                FROM contracts
+            ")->fetchAll(PDO::FETCH_ASSOC);
 
-            if ($total > 0) {
-                $myPendingApprovals[] = [
-                    'key'   => $approvalKey,
-                    'label' => $approvalLabels[$approvalKey] ?? $approvalKey,
-                    'count' => $total,
-                ];
+            $pendingCounts = array_fill_keys($userApprovalKeys, 0);
+
+            foreach ($allContracts as $contract) {
+                $required = ApprovalRulesController::requiredApprovalsFor($this->db, $contract);
+                foreach ($userApprovalKeys as $approvalKey) {
+                    if (!in_array($approvalKey, $required, true)) continue;
+                    $col = $colMap[$approvalKey];
+                    if (empty($contract[$col])) {
+                        $pendingCounts[$approvalKey]++;
+                    }
+                }
+            }
+
+            foreach ($userApprovalKeys as $approvalKey) {
+                if ($pendingCounts[$approvalKey] > 0) {
+                    $myPendingApprovals[] = [
+                        'key'   => $approvalKey,
+                        'label' => $approvalLabels[$approvalKey] ?? $approvalKey,
+                        'count' => $pendingCounts[$approvalKey],
+                    ];
+                }
             }
         }
 

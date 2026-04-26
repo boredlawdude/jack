@@ -311,8 +311,27 @@ class ContractsController
         if ($pa !== '' && isset($pendingApprovalColMap[$pa])) {
             require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
             $col = $pendingApprovalColMap[$pa];
-            $stmt = $this->db->query("SELECT contract_id FROM contracts WHERE `$col` IS NULL");
-            $pendingIds = array_flip($stmt->fetchAll(PDO::FETCH_COLUMN));
+
+            // Fetch only the fields needed to evaluate rules, filtered to unstamped contracts
+            $candidateStmt = $this->db->prepare(
+                "SELECT contract_id, total_contract_value, renewal_term_months, contract_type_id,
+                        use_standard_contract, minimum_insurance_coi,
+                        manager_approval_date, purchasing_approval_date, legal_approval_date,
+                        risk_manager_approval_date, council_approval_date
+                   FROM contracts WHERE `$col` IS NULL"
+            );
+            $candidateStmt->execute();
+            $candidates = $candidateStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Keep only contracts where current rules actually require this approval type
+            $pendingIds = [];
+            foreach ($candidates as $candidate) {
+                $required = ApprovalRulesController::requiredApprovalsFor($this->db, $candidate);
+                if (in_array($pa, $required, true)) {
+                    $pendingIds[(int)$candidate['contract_id']] = true;
+                }
+            }
+
             $contracts = array_filter($contracts, fn($c) => isset($pendingIds[(int)$c['contract_id']]));
             $pendingApprovalFilter = $pa;
             $pendingApprovalLabel  = ApprovalRulesController::APPROVAL_LABELS[$pa] ?? $pa;
