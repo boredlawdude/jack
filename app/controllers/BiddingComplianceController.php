@@ -36,6 +36,9 @@ class BiddingComplianceController
         $eventDate  = trim($_POST['event_date'] ?? '');
         $eventType  = trim($_POST['event_type'] ?? '');
         $comment    = trim($_POST['comment'] ?? '');
+        $isConsortium       = isset($_POST['is_consortium']) ? 1 : 0;
+        $consortiumName     = trim($_POST['consortium_name'] ?? '');
+        $consortiumContractNumber = trim($_POST['consortium_contract_number'] ?? '');
         $createdBy  = isset($_SESSION['person']['person_id']) ? (int)$_SESSION['person']['person_id'] : null;
 
         // Validate
@@ -100,14 +103,20 @@ class BiddingComplianceController
 
         // Insert bidding_compliance record
         $stmt = $this->db->prepare(
-            "INSERT INTO bidding_compliance (contract_id, event_date, event_type, comment, contract_document_id, created_by_person_id, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, NOW())"
+            "INSERT INTO bidding_compliance
+                (contract_id, event_date, event_type, comment,
+                 is_consortium, consortium_name, consortium_contract_number,
+                 contract_document_id, created_by_person_id, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())"
         );
         $stmt->execute([
             $contractId,
             $eventDate,
             $eventType,
             $comment ?: null,
+            $isConsortium,
+            ($isConsortium && $consortiumName !== '') ? $consortiumName : null,
+            ($isConsortium && $consortiumContractNumber !== '') ? $consortiumContractNumber : null,
             $contractDocumentId,
             $createdBy,
         ]);

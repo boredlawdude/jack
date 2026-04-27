@@ -838,6 +838,27 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
                 <label class="form-label form-label-sm mb-1">File (optional)</label>
                 <input type="file" name="compliance_file" class="form-control form-control-sm" accept=".pdf,.docx,.doc,.xlsx,.xls,.png,.jpg,.jpeg">
               </div>
+              <div class="col-12">
+                <div class="form-check mt-1">
+                  <input class="form-check-input" type="checkbox" name="is_consortium" id="bc_is_consortium" value="1"
+                         onchange="document.getElementById('bc_consortium_fields').classList.toggle('d-none', !this.checked)">
+                  <label class="form-check-label small" for="bc_is_consortium">Bidding Consortium used</label>
+                </div>
+                <div id="bc_consortium_fields" class="d-none mt-2">
+                  <div class="row g-2">
+                    <div class="col-md-5">
+                      <label class="form-label form-label-sm mb-1">Consortium / Group Name</label>
+                      <input type="text" name="consortium_name" class="form-control form-control-sm" maxlength="200"
+                             placeholder="e.g. NCPA, Sourcewell, TIPS…">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label form-label-sm mb-1">Master Contract #</label>
+                      <input type="text" name="consortium_contract_number" class="form-control form-control-sm" maxlength="100"
+                             placeholder="e.g. 01-112 or 4400023640">
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="col-md-1">
                 <button type="submit" class="btn btn-sm btn-primary w-100">Add</button>
               </div>
@@ -854,6 +875,7 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
                   <th>Date</th>
                   <th>Event</th>
                   <th>Comment</th>
+                  <th>Consortium</th>
                   <th>Document</th>
                   <th>By</th>
                   <th></th>
@@ -865,6 +887,19 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
                     <td class="text-nowrap"><?= date('m/d/Y', strtotime($rec['event_date'])) ?></td>
                     <td class="text-nowrap"><span class="badge bg-info text-dark"><?= h($rec['event_type']) ?></span></td>
                     <td style="white-space:pre-wrap"><?= h($rec['comment'] ?? '') ?></td>
+                    <td>
+                      <?php if (!empty($rec['is_consortium'])): ?>
+                        <span class="badge bg-secondary">Consortium</span>
+                        <?php if (!empty($rec['consortium_name'])): ?>
+                          <div class="small fw-semibold"><?= h($rec['consortium_name']) ?></div>
+                        <?php endif; ?>
+                        <?php if (!empty($rec['consortium_contract_number'])): ?>
+                          <div class="small text-muted">Ctr# <?= h($rec['consortium_contract_number']) ?></div>
+                        <?php endif; ?>
+                      <?php else: ?>
+                        <span class="text-muted">—</span>
+                      <?php endif; ?>
+                    </td>
                     <td>
                       <?php if (!empty($rec['doc_file_path'])): ?>
                         <?php
