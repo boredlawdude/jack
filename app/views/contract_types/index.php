@@ -13,6 +13,7 @@ if (!function_exists('h')) {
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0">Contract Types</h1>
     <div class="d-flex gap-2">
+      <a href="/index.php?page=merge_field_reference" class="btn btn-outline-info btn-sm">Merge Field Reference</a>
       <a href="/index.php?page=contract_types_create" class="btn btn-primary btn-sm">+ New Contract Type</a>
       <a href="/index.php?page=contracts" class="btn btn-outline-secondary btn-sm">Back to Contracts</a>
     </div>

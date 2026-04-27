@@ -16,6 +16,7 @@ if (!function_exists('h')) {
       <p class="text-muted mb-0">Manage templates for this contract type</p>
     </div>
     <a href="/index.php?page=contract_types" class="btn btn-outline-secondary btn-sm">Back to Types</a>
+    <a href="/index.php?page=merge_field_reference" class="btn btn-outline-info btn-sm">Merge Field Reference</a>
   </div>
 
   <?php if (!empty($flashMessages)): ?>

@@ -15,47 +15,98 @@ require_once APP_ROOT . '/app/views/layouts/header.php';
   </div>
 
   <p class="text-muted mb-4">
-    In your Word (.docx) or HTML templates, wrap any field name below in
-    <code>${"{"}</code>…<code>{"}"}</code> — for example <code>${"{"} contract_number {"}"}</code>.
-    All fields listed are automatically available when a document is generated.
+    Use these field names in your templates to insert live contract data when a document is generated.
+    <strong>Word (.docx):</strong> wrap in <code>${field_name}</code> &nbsp;|&nbsp;
+    <strong>HTML:</strong> wrap in <code>{{field_name}}</code>.
+    All fields are replaced with an empty string if the value is blank or null.
   </p>
 
-  <!-- ── All Contracts ─────────────────────────────────────────── -->
+  <!-- ── Core Contract Fields ──────────────────────────────────── -->
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-white">
-      <h2 class="h6 mb-0">All Contract Templates</h2>
-      <div class="small text-muted">Available in every template type</div>
+      <h2 class="h6 mb-0">Core Contract Fields</h2>
+      <div class="small text-muted">Available in every contract template</div>
     </div>
     <div class="card-body p-0">
       <table class="table table-sm table-bordered table-hover mb-0">
         <thead class="table-light">
-          <tr><th style="width:35%">Field Name (use in template)</th><th>Description / Example</th></tr>
+          <tr><th style="width:35%">Field Name</th><th>Description / Example</th></tr>
         </thead>
         <tbody>
           <?php
           $contractFields = [
             ['contract_id',              'Internal numeric ID of the contract'],
             ['contract_number',          'Contract number (e.g. 2024-001)'],
-            ['contract_title',           'Title / short description of the contract'],
-            ['contract_status',          'Current status label'],
-            ['contract_type_name',       'Contract type name (e.g. Development Agreement)'],
-            ['effective_date',           'Effective date (YYYY-MM-DD)'],
-            ['expiration_date',          'Expiration / end date (YYYY-MM-DD)'],
-            ['date_approved',            'Date the contract was approved'],
-            ['contract_amount',          'Contract dollar amount (raw decimal)'],
-            ['owner_company_id',         'ID of the municipality / owner company'],
-            ['owner_company_name',       'Name of the municipality / owner company'],
-            ['counterparty_company_id',  'ID of the counterparty company'],
-            ['counterparty_company_name','Name of the counterparty company'],
-            ['description',              'Long description / scope of the contract'],
-            ['notes',                    'Internal notes'],
+            ['name',                     'Contract title / short name'],
+            ['description',              'Full scope / description of the contract'],
+            ['status_name',              'Current status label (e.g. Active, Out For Signature)'],
+            ['status_comment',           'Optional comment on the current status'],
+            ['contract_type_name',       'Contract type (e.g. Development Agreement, Service Contract)'],
+            ['start_date',               'Contract start / effective date (YYYY-MM-DD)'],
+            ['end_date',                 'Contract end / expiration date (YYYY-MM-DD)'],
+            ['total_contract_value',     'Contract dollar amount (raw decimal, e.g. 150000.00)'],
+            ['currency',                 'Currency code (e.g. USD)'],
             ['po_number',                'Purchase order number'],
-            ['procurement_method',       'Procurement method used'],
+            ['po_amount',                'PO dollar amount (raw decimal)'],
+            ['account_number',           'Account / GL number'],
+            ['governing_law',            'Governing law / jurisdiction'],
+            ['auto_renew',               '1 or 0 — whether contract auto-renews'],
+            ['renewal_term_months',      'Renewal term length in months'],
+            ['minimum_insurance_coi',    '1 or 0 — COI required'],
             ['use_standard_contract',    '1 or 0 — whether standard contract form is used'],
+            ['procurement_method',       'Procurement method (e.g. Open Market, Formal Bid)'],
+            ['bid_rfp_number',           'Bid or RFP reference number'],
+            ['procurement_notes',        'Procurement narrative / notes'],
+            ['date_approved_by_procurement', 'Date approved by procurement (YYYY-MM-DD)'],
+            ['date_approved_by_manager', 'Date approved by manager (YYYY-MM-DD)'],
+            ['date_approved_by_council', 'Date approved by council (YYYY-MM-DD)'],
+            ['manager_approval_date',    'Manager approval date (YYYY-MM-DD)'],
+            ['purchasing_approval_date', 'Purchasing approval date (YYYY-MM-DD)'],
+            ['legal_approval_date',      'Legal approval date (YYYY-MM-DD)'],
+            ['risk_manager_approval_date','Risk manager approval date (YYYY-MM-DD)'],
+            ['council_approval_date',    'Council approval date (YYYY-MM-DD)'],
             ['created_at',               'Record creation timestamp'],
             ['updated_at',               'Record last-updated timestamp'],
           ];
           foreach ($contractFields as [$name, $desc]): ?>
+          <tr>
+            <td><code>${<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>}</code></td>
+            <td class="text-muted small"><?= htmlspecialchars($desc, ENT_QUOTES, 'UTF-8') ?></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Parties & Contacts ────────────────────────────────────── -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+      <h2 class="h6 mb-0">Parties &amp; Contacts</h2>
+      <div class="small text-muted">Company and contact person fields — available in every contract template</div>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm table-bordered table-hover mb-0">
+        <thead class="table-light">
+          <tr><th style="width:35%">Field Name</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <?php
+          $partyFields = [
+            ['owner_company_id',                 'ID of the municipality / owner company'],
+            ['owner_company_name',               'Name of the municipality / owner company'],
+            ['owner_primary_contact_name',       'Full name of the municipality\'s primary contact'],
+            ['owner_primary_contact_email',      'Email of the municipality\'s primary contact'],
+            ['counterparty_company_id',          'ID of the counterparty (vendor) company'],
+            ['counterparty_company_name',        'Name of the counterparty (vendor) company'],
+            ['counterparty_primary_contact_name','Full name of the counterparty\'s primary contact'],
+            ['counterparty_primary_contact_email','Email of the counterparty\'s primary contact'],
+            ['department_name',                  'Department responsible for this contract'],
+            ['department_code',                  'Department code / abbreviation'],
+            ['payment_terms_name',               'Payment terms label (e.g. Net 30)'],
+            ['payment_terms_description',        'Payment terms description / detail'],
+          ];
+          foreach ($partyFields as [$name, $desc]): ?>
           <tr>
             <td><code>${<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>}</code></td>
             <td class="text-muted small"><?= htmlspecialchars($desc, ENT_QUOTES, 'UTF-8') ?></td>
@@ -165,11 +216,13 @@ require_once APP_ROOT . '/app/views/layouts/header.php';
     </div>
     <div class="card-body">
       <ul class="mb-0 small">
-        <li>In <strong>Word (.docx)</strong>: type <code>${field_name}</code> directly in the document — no special formatting needed. Use <em>Find &amp; Replace</em> to verify the placeholder doesn't get split across runs.</li>
+        <li>In <strong>Word (.docx)</strong>: type <code>${field_name}</code> directly in the document. Use <em>Find &amp; Replace</em> to verify the placeholder wasn't split across runs.</li>
         <li>In <strong>HTML templates</strong>: use <code>{{field_name}}</code> (double curly braces).</li>
         <li>If a field is blank or null, the placeholder is replaced with an empty string.</li>
-        <li>Date fields are stored as <code>YYYY-MM-DD</code>. Format them in Word with a date-format switch if needed, or use the pre-formatted <code>_short</code> / <code>_label</code> variants where provided.</li>
-        <li>The <code>da_daily_flow_maximum</code> field is already formatted with commas and "gpd" suffix.</li>
+        <li>Date fields are stored as <code>YYYY-MM-DD</code>. Format them in Word with a date-format switch if needed.</li>
+        <li><code>da_daily_flow_maximum</code> is pre-formatted with commas and "gpd" suffix.</li>
+        <li><code>co_amount_formatted</code> is pre-formatted with a $ sign and commas (e.g. <code>$1,500.00</code>).</li>
+        <li>All DA fields are also available <em>without</em> the <code>da_</code> prefix unless a core contract field has the same name.</li>
       </ul>
     </div>
   </div>
