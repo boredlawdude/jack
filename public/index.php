@@ -538,6 +538,37 @@ case 'departments_store':
         }
         break;
 
+    // ── AJAX: return a company's contacts (signers) as JSON ─────────────────
+    case 'api_company_contacts':
+        require_login();
+        header('Content-Type: application/json; charset=utf-8');
+        $companyId = (int)($_GET['company_id'] ?? 0);
+        if (!$companyId) { echo json_encode([]); exit; }
+        $stmt = db()->prepare(
+            "SELECT contact_name, email,
+                    signer1_name, signer1_email,
+                    signer2_name, signer2_email,
+                    signer3_name, signer3_email
+             FROM companies WHERE company_id = ? LIMIT 1"
+        );
+        $stmt->execute([$companyId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $contacts = [];
+        if ($row) {
+            if (!empty($row['contact_name'])) {
+                $contacts[] = ['name' => $row['contact_name'], 'email' => $row['email'] ?? ''];
+            }
+            for ($i = 1; $i <= 3; $i++) {
+                $n = trim((string)($row["signer{$i}_name"] ?? ''));
+                $e = trim((string)($row["signer{$i}_email"] ?? ''));
+                if ($n !== '') {
+                    $contacts[] = ['name' => $n, 'email' => $e];
+                }
+            }
+        }
+        echo json_encode($contacts, JSON_UNESCAPED_UNICODE);
+        exit;
+
     default:
         (new DashboardController())->index();
         break;

@@ -205,7 +205,7 @@ if (!function_exists('h')) {
 
             <div class="col-md-6">
                 <label class="form-label">Counterparty Company</label>
-                <select class="form-select" name="counterparty_company_id">
+                <select class="form-select" id="counterparty_company_id" name="counterparty_company_id">
                     <option value="">Select…</option>
                     <?php foreach (($companies ?? []) as $co): ?>
                         <option value="<?= (int)$co['company_id'] ?>"
@@ -218,22 +218,23 @@ if (!function_exists('h')) {
 
             <div class="col-md-6">
                 <label class="form-label">Counterparty Primary Contact</label>
-                <select class="form-select" name="counterparty_primary_contact_id">
-                    <option value="">(none)</option>
-                    <?php foreach (($counterpartyPeople ?? []) as $p): ?>
-                        <?php
-                        $nm = trim((string)($p['full_name'] ?? ''));
-                        if ($nm === '') {
-                            $nm = trim((string)($p['first_name'] ?? '') . ' ' . (string)($p['last_name'] ?? ''));
-                        }
-                        $label = $nm . (!empty($p['email']) ? ' — ' . $p['email'] : '');
-                        ?>
-                        <option value="<?= (int)$p['person_id'] ?>"
-                            <?= ((string)($contract['counterparty_primary_contact_id'] ?? '') === (string)$p['person_id']) ? 'selected' : '' ?>>
-                            <?= h($label) ?>
+                <select class="form-select" id="counterparty_contact_select">
+                    <?php if (!empty($contract['counterparty_contact_name'])): ?>
+                        <option value=""
+                            data-name="<?= h($contract['counterparty_contact_name']) ?>"
+                            data-email="<?= h($contract['counterparty_contact_email'] ?? '') ?>"
+                            selected>
+                            <?= h($contract['counterparty_contact_name']) ?>
+                            <?= !empty($contract['counterparty_contact_email']) ? ' — ' . h($contract['counterparty_contact_email']) : '' ?>
                         </option>
-                    <?php endforeach; ?>
+                    <?php else: ?>
+                        <option value="">— Select company first —</option>
+                    <?php endif; ?>
                 </select>
+                <input type="hidden" name="counterparty_contact_name"  id="counterparty_contact_name"
+                       value="<?= h($contract['counterparty_contact_name'] ?? '') ?>">
+                <input type="hidden" name="counterparty_contact_email" id="counterparty_contact_email"
+                       value="<?= h($contract['counterparty_contact_email'] ?? '') ?>">
             </div>
 
                 </div>
@@ -395,6 +396,67 @@ if (!function_exists('h')) {
     </div>
 </form>
 
+<script>
+(function () {
+    const companySel = document.getElementById('counterparty_company_id');
+    const contactSel = document.getElementById('counterparty_contact_select');
+    const nameInput  = document.getElementById('counterparty_contact_name');
+    const emailInput = document.getElementById('counterparty_contact_email');
 
+    function loadContacts(companyId, restoreName) {
+        if (!companyId) {
+            contactSel.innerHTML = '<option value="">— Select company first —</option>';
+            return;
+        }
+        fetch('/index.php?page=api_company_contacts&company_id=' + encodeURIComponent(companyId))
+            .then(r => r.json())
+            .then(contacts => {
+                contactSel.innerHTML = '<option value="" data-name="" data-email="">(none)</option>';
+                contacts.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.dataset.name  = c.name;
+                    opt.dataset.email = c.email || '';
+                    opt.textContent   = c.name + (c.email ? ' — ' + c.email : '');
+                    if (restoreName && c.name === restoreName) opt.selected = true;
+                    contactSel.appendChild(opt);
+                });
+                // If no match found but we have a saved name, show it as a placeholder option
+                if (restoreName && !contactSel.querySelector('[data-name="' + CSS.escape(restoreName) + '"]')) {
+                    const opt = document.createElement('option');
+                    opt.dataset.name  = restoreName;
+                    opt.dataset.email = emailInput.value;
+                    opt.textContent   = restoreName + (emailInput.value ? ' — ' + emailInput.value : '') + ' (saved)';
+                    opt.selected = true;
+                    contactSel.insertBefore(opt, contactSel.firstChild.nextSibling);
+                }
+                syncHidden();
+            })
+            .catch(() => {
+                contactSel.innerHTML = '<option value="">Unable to load contacts</option>';
+            });
+    }
+
+    function syncHidden() {
+        const opt = contactSel.options[contactSel.selectedIndex];
+        nameInput.value  = opt ? (opt.dataset.name  || '') : '';
+        emailInput.value = opt ? (opt.dataset.email || '') : '';
+    }
+
+    companySel.addEventListener('change', function () {
+        nameInput.value  = '';
+        emailInput.value = '';
+        loadContacts(this.value, null);
+    });
+
+    contactSel.addEventListener('change', syncHidden);
+
+    // On page load: if a company is already selected, reload its contacts
+    // and restore the saved contact name selection
+    const savedName = nameInput.value;
+    if (companySel.value) {
+        loadContacts(companySel.value, savedName || null);
+    }
+})();
+</script>
 
 <?php require APP_ROOT . '/app/views/layouts/footer.php'; ?>

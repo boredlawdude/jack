@@ -441,7 +441,6 @@ class ContractsController
             $ownerPeople = $this->getPeopleByCompany((int)$contract['owner_company_id']);
         }
 
-        $counterpartyPeople = $this->getCounterpartyPrimaryContacts();
         $complianceInfoLink = $this->getSystemSetting('compliance_info_link');
 
         require APP_ROOT . '/app/views/contracts/edit.php';
@@ -524,7 +523,6 @@ class ContractsController
         if (!empty($contract['owner_company_id'])) {
             $ownerPeople = $this->getPeopleByCompany((int)$contract['owner_company_id']);
         }
-        $counterpartyPeople = $this->getCounterpartyPrimaryContacts();
         $complianceInfoLink = $this->getSystemSetting('compliance_info_link');
         $riskManagerEmails  = $this->getRiskManagerEmails();
         require APP_ROOT . '/app/views/contracts/edit.php';
