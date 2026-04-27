@@ -32,6 +32,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Vendor/counterparty email address is not valid.';
         }
 
+        // Validate signer emails if provided
+        for ($i = 1; $i <= 3; $i++) {
+            $se = trim((string)($_POST['counterparty_signer'.$i.'_email'] ?? ''));
+            if ($se !== '' && !filter_var($se, FILTER_VALIDATE_EMAIL)) {
+                $errors[] = 'Signer ' . $i . ' email address is not valid.';
+            }
+        }
+
+        $esignConsent = isset($_POST['esign_consent']) ? 1 : 0;
+
         // Sanitize numeric fields
         $estimatedValue = null;
         $rawValue = trim((string)($_POST['estimated_value'] ?? ''));
@@ -72,6 +82,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'po_number'            => substr(trim((string)($_POST['po_number']      ?? '')), 0, 20),
                 'account_number'       => substr(trim((string)($_POST['account_number'] ?? '')), 0, 20),
                 'notes'                => trim((string)($_POST['notes'] ?? '')),
+                'counterparty_signer1_name'  => substr(trim((string)($_POST['counterparty_signer1_name']  ?? '')), 0, 100),
+                'counterparty_signer1_title' => substr(trim((string)($_POST['counterparty_signer1_title'] ?? '')), 0, 100),
+                'counterparty_signer1_email' => trim((string)($_POST['counterparty_signer1_email'] ?? '')),
+                'counterparty_signer2_name'  => substr(trim((string)($_POST['counterparty_signer2_name']  ?? '')), 0, 100),
+                'counterparty_signer2_title' => substr(trim((string)($_POST['counterparty_signer2_title'] ?? '')), 0, 100),
+                'counterparty_signer2_email' => trim((string)($_POST['counterparty_signer2_email'] ?? '')),
+                'counterparty_signer3_name'  => substr(trim((string)($_POST['counterparty_signer3_name']  ?? '')), 0, 100),
+                'counterparty_signer3_title' => substr(trim((string)($_POST['counterparty_signer3_title'] ?? '')), 0, 100),
+                'counterparty_signer3_email' => trim((string)($_POST['counterparty_signer3_email'] ?? '')),
+                'esign_consent'        => $esignConsent,
             ]);
             $success = true;
         }
@@ -247,6 +267,46 @@ $old = (!$success && $_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : [];
           <input type="tel" class="form-control" name="counterparty_phone" maxlength="30"
                  value="<?= h($old['counterparty_phone'] ?? '') ?>">
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Authorized Signers ────────────────────────────────────────────────── -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <p class="section-label">Authorized Signers (Vendor / Counterparty)</p>
+      <p class="text-muted small mb-3">Provide the name(s) and title(s) of the person(s) who will sign this contract on behalf of the vendor. At least one signer is recommended if you know who will sign.</p>
+      <?php foreach ([1, 2, 3] as $n): ?>
+      <div class="row g-2 mb-3 align-items-end">
+        <div class="col-12 mb-1" style="color:#6c757d;font-size:.8rem;font-weight:600;">Signer <?= $n ?><?= $n === 1 ? ' (Primary)' : ' <span class="fw-normal">(optional)</span>' ?></div>
+        <div class="col-md-4">
+          <label class="form-label form-label-sm">Full Name</label>
+          <input type="text" class="form-control form-control-sm" name="counterparty_signer<?= $n ?>_name" maxlength="100"
+                 value="<?= h($old['counterparty_signer'.$n.'_name'] ?? '') ?>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label form-label-sm">Title / Role</label>
+          <input type="text" class="form-control form-control-sm" name="counterparty_signer<?= $n ?>_title" maxlength="100"
+                 placeholder="e.g. CEO, President, Owner"
+                 value="<?= h($old['counterparty_signer'.$n.'_title'] ?? '') ?>">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label form-label-sm">Email</label>
+          <input type="email" class="form-control form-control-sm" name="counterparty_signer<?= $n ?>_email" maxlength="200"
+                 value="<?= h($old['counterparty_signer'.$n.'_email'] ?? '') ?>">
+        </div>
+      </div>
+      <?php endforeach; ?>
+
+      <div class="mt-3 pt-3 border-top">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="esign_consent" name="esign_consent" value="1"
+                 <?= !empty($old['esign_consent']) ? 'checked' : '' ?>>
+          <label class="form-check-label" for="esign_consent">
+            <strong>The vendor/counterparty has indicated they consent to electronic signing (DocuSign).</strong>
+          </label>
+        </div>
+        <div class="form-text mt-1 text-muted">If the vendor has not yet confirmed they can sign electronically, leave unchecked and staff will follow up.</div>
       </div>
     </div>
   </div>

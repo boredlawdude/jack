@@ -74,7 +74,10 @@ class CompaniesController
                         company_type_id, state_of_incorporation,
                         is_active,
                         coi_exp_date, coi_carrier, coi_verified_by_person_id,
-                        sosid
+                        sosid,
+                        signer1_name, signer1_title, signer1_email,
+                        signer2_name, signer2_title, signer2_email,
+                        signer3_name, signer3_title, signer3_email
                     )
                 VALUES
                     (
@@ -84,7 +87,10 @@ class CompaniesController
                         :company_type_id, :state_of_incorporation,
                         :is_active,
                         :coi_exp_date, :coi_carrier, :coi_verified_by_person_id,
-                        :sosid
+                        :sosid,
+                        :signer1_name, :signer1_title, :signer1_email,
+                        :signer2_name, :signer2_title, :signer2_email,
+                        :signer3_name, :signer3_title, :signer3_email
                     )
             ");
 
@@ -274,7 +280,16 @@ class CompaniesController
                     coi_exp_date = :coi_exp_date,
                     coi_carrier = :coi_carrier,
                     coi_verified_by_person_id = :coi_verified_by_person_id,
-                    sosid = :sosid
+                    sosid = :sosid,
+                    signer1_name = :signer1_name,
+                    signer1_title = :signer1_title,
+                    signer1_email = :signer1_email,
+                    signer2_name = :signer2_name,
+                    signer2_title = :signer2_title,
+                    signer2_email = :signer2_email,
+                    signer3_name = :signer3_name,
+                    signer3_title = :signer3_title,
+                    signer3_email = :signer3_email
                 WHERE company_id = :company_id
             ");
 
@@ -366,6 +381,15 @@ class CompaniesController
             'coi_carrier' => $this->nullIfEmpty($input['coi_carrier'] ?? null),
             'coi_verified_by_person_id' => $this->nullableInt($input['coi_verified_by_person_id'] ?? null),
             'sosid' => $this->nullIfEmpty($input['sosid'] ?? null),
+            'signer1_name'  => $this->nullIfEmpty($input['signer1_name']  ?? null),
+            'signer1_title' => $this->nullIfEmpty($input['signer1_title'] ?? null),
+            'signer1_email' => $this->nullIfEmpty($input['signer1_email'] ?? null),
+            'signer2_name'  => $this->nullIfEmpty($input['signer2_name']  ?? null),
+            'signer2_title' => $this->nullIfEmpty($input['signer2_title'] ?? null),
+            'signer2_email' => $this->nullIfEmpty($input['signer2_email'] ?? null),
+            'signer3_name'  => $this->nullIfEmpty($input['signer3_name']  ?? null),
+            'signer3_title' => $this->nullIfEmpty($input['signer3_title'] ?? null),
+            'signer3_email' => $this->nullIfEmpty($input['signer3_email'] ?? null),
         ];
     }
 

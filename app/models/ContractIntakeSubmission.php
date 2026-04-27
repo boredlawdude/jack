@@ -13,13 +13,21 @@ class ContractIntakeSubmission
                  contract_name, contract_description, contract_type_id,
                  counterparty_company, counterparty_contact, counterparty_email, counterparty_phone,
                  estimated_value, start_date, end_date,
-                 po_number, account_number, notes)
+                 po_number, account_number, notes,
+                 counterparty_signer1_name, counterparty_signer1_title, counterparty_signer1_email,
+                 counterparty_signer2_name, counterparty_signer2_title, counterparty_signer2_email,
+                 counterparty_signer3_name, counterparty_signer3_title, counterparty_signer3_email,
+                 esign_consent)
             VALUES
                 (:submitter_name, :submitter_email, :submitter_phone, :submitter_department,
                  :contract_name, :contract_description, :contract_type_id,
                  :counterparty_company, :counterparty_contact, :counterparty_email, :counterparty_phone,
                  :estimated_value, :start_date, :end_date,
-                 :po_number, :account_number, :notes)
+                 :po_number, :account_number, :notes,
+                 :counterparty_signer1_name, :counterparty_signer1_title, :counterparty_signer1_email,
+                 :counterparty_signer2_name, :counterparty_signer2_title, :counterparty_signer2_email,
+                 :counterparty_signer3_name, :counterparty_signer3_title, :counterparty_signer3_email,
+                 :esign_consent)
         ");
         $stmt->execute([
             ':submitter_name'       => $data['submitter_name'],
@@ -39,6 +47,16 @@ class ContractIntakeSubmission
             ':po_number'            => $this->n($data['po_number']            ?? null),
             ':account_number'       => $this->n($data['account_number']       ?? null),
             ':notes'                => $this->n($data['notes']                ?? null),
+            ':counterparty_signer1_name'  => $this->n($data['counterparty_signer1_name']  ?? null),
+            ':counterparty_signer1_title' => $this->n($data['counterparty_signer1_title'] ?? null),
+            ':counterparty_signer1_email' => $this->n($data['counterparty_signer1_email'] ?? null),
+            ':counterparty_signer2_name'  => $this->n($data['counterparty_signer2_name']  ?? null),
+            ':counterparty_signer2_title' => $this->n($data['counterparty_signer2_title'] ?? null),
+            ':counterparty_signer2_email' => $this->n($data['counterparty_signer2_email'] ?? null),
+            ':counterparty_signer3_name'  => $this->n($data['counterparty_signer3_name']  ?? null),
+            ':counterparty_signer3_title' => $this->n($data['counterparty_signer3_title'] ?? null),
+            ':counterparty_signer3_email' => $this->n($data['counterparty_signer3_email'] ?? null),
+            ':esign_consent'        => (int)($data['esign_consent'] ?? 0),
         ]);
         return (int)$this->db->lastInsertId();
     }

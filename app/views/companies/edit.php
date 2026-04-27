@@ -194,6 +194,34 @@ $townEmployees = $townEmployees ?? [];
         </div>
     </div>
 
+    <!-- ── DocuSign Signers ──────────────────────────────────────────────────── -->
+    <div class="card-body border-top pt-3">
+      <p class="section-label mb-3" style="font-size:.7rem;text-transform:uppercase;font-weight:600;letter-spacing:.05em;color:#6c757d;border-bottom:1px solid #dee2e6;padding-bottom:.4rem;">DocuSign Signers (Vendor Side)</p>
+      <p class="text-muted small mb-3">Pre-populate the authorized signers for this company when sending contracts for e-signature.</p>
+      <?php foreach ([1, 2, 3] as $n): ?>
+      <div class="row g-2 mb-3 align-items-end">
+        <div class="col-12 col-md-auto mb-1 mb-md-0" style="min-width:5rem;padding-top:1.75rem;color:#6c757d;font-size:.85rem;font-weight:600;">
+          Signer <?= $n ?>
+        </div>
+        <div class="col-md">
+          <label class="form-label form-label-sm">Full Name</label>
+          <input type="text" class="form-control form-control-sm" name="signer<?= $n ?>_name" maxlength="100"
+                 value="<?= h($company['signer'.$n.'_name'] ?? '') ?>">
+        </div>
+        <div class="col-md">
+          <label class="form-label form-label-sm">Title</label>
+          <input type="text" class="form-control form-control-sm" name="signer<?= $n ?>_title" maxlength="100"
+                 value="<?= h($company['signer'.$n.'_title'] ?? '') ?>">
+        </div>
+        <div class="col-md">
+          <label class="form-label form-label-sm">Email</label>
+          <input type="email" class="form-control form-control-sm" name="signer<?= $n ?>_email" maxlength="200"
+                 value="<?= h($company['signer'.$n.'_email'] ?? '') ?>">
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+
     <div class="card-footer d-flex gap-2">
         <button class="btn btn-primary"><?= $isEdit ? 'Save' : 'Create' ?></button>
         <a class="btn btn-outline-secondary" href="/index.php?page=companies">Back</a>

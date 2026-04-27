@@ -82,6 +82,56 @@ function row(string $label, mixed $value, bool $money = false): void {
     </div>
   </div>
 
+  <!-- ── Authorized Signers ────────────────────────────────────────────────── -->
+  <div class="card mb-3 <?= !$sub['esign_consent'] ? 'border-warning' : '' ?>">
+    <div class="card-header small fw-semibold text-muted d-flex justify-content-between align-items-center">
+      <span>Authorized Signers (Vendor)</span>
+      <?php if ($sub['esign_consent']): ?>
+        <span class="badge bg-success">E-sign consent given</span>
+      <?php else: ?>
+        <span class="badge bg-warning text-dark">No e-sign consent</span>
+      <?php endif; ?>
+    </div>
+    <div class="card-body">
+      <?php if (!$sub['esign_consent']): ?>
+        <div class="alert alert-warning mb-3 py-2">
+          <strong>&#9888; E-Sign Consent Not Confirmed</strong> — The submitter did not indicate that the vendor has consented to electronic signing. You should confirm with the vendor before sending via DocuSign.
+        </div>
+      <?php endif; ?>
+      <?php
+        $hasAnySigner = false;
+        for ($i = 1; $i <= 3; $i++) {
+            if (!empty($sub['counterparty_signer'.$i.'_name']) || !empty($sub['counterparty_signer'.$i.'_email'])) {
+                $hasAnySigner = true;
+                break;
+            }
+        }
+      ?>
+      <?php if ($hasAnySigner): ?>
+        <table class="table table-sm mb-0">
+          <thead><tr><th>#</th><th>Name</th><th>Title</th><th>Email</th></tr></thead>
+          <tbody>
+            <?php for ($i = 1; $i <= 3; $i++):
+              $sName  = $sub['counterparty_signer'.$i.'_name']  ?? '';
+              $sTitle = $sub['counterparty_signer'.$i.'_title'] ?? '';
+              $sEmail = $sub['counterparty_signer'.$i.'_email'] ?? '';
+              if ($sName === '' && $sEmail === '') continue;
+            ?>
+            <tr>
+              <td class="text-muted"><?= $i ?></td>
+              <td><?= h($sName) ?: '<span class="text-muted">—</span>' ?></td>
+              <td><?= h($sTitle) ?: '<span class="text-muted">—</span>' ?></td>
+              <td><?= h($sEmail) ?: '<span class="text-muted">—</span>' ?></td>
+            </tr>
+            <?php endfor; ?>
+          </tbody>
+        </table>
+      <?php else: ?>
+        <p class="text-muted mb-0">No signers provided.</p>
+      <?php endif; ?>
+    </div>
+  </div>
+
   <!-- ── Notes ─────────────────────────────────────────────────────────────── -->
   <?php if (!empty($sub['notes'])): ?>
   <div class="card mb-3">
