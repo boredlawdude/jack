@@ -99,14 +99,76 @@ require_once APP_ROOT . '/app/views/layouts/header.php';
             ['owner_primary_contact_email',      'Email of the municipality\'s primary contact'],
             ['counterparty_company_id',          'ID of the counterparty (vendor) company'],
             ['counterparty_company_name',        'Name of the counterparty (vendor) company'],
-            ['counterparty_primary_contact_name','Full name of the counterparty\'s primary contact'],
-            ['counterparty_primary_contact_email','Email of the counterparty\'s primary contact'],
+            ['counterparty_primary_contact_name','Full name of the counterparty\'s primary contact (from contract)'],
+            ['counterparty_primary_contact_email','Email of the counterparty\'s primary contact (from contract)'],
             ['department_name',                  'Department responsible for this contract'],
             ['department_code',                  'Department code / abbreviation'],
             ['payment_terms_name',               'Payment terms label (e.g. Net 30)'],
             ['payment_terms_description',        'Payment terms description / detail'],
           ];
           foreach ($partyFields as [$name, $desc]): ?>
+          <tr>
+            <td><code>${<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>}</code></td>
+            <td class="text-muted small"><?= htmlspecialchars($desc, ENT_QUOTES, 'UTF-8') ?></td>
+          </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Company Address & Detail Fields ───────────────────────── -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+      <h2 class="h6 mb-0">Company Address &amp; Detail Fields</h2>
+      <div class="small text-muted">Pulled live from the Companies record — available in every contract template</div>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm table-bordered table-hover mb-0">
+        <thead class="table-light">
+          <tr><th style="width:35%">Field Name</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <?php
+          $companyFields = [
+            // Counterparty
+            ['counterparty_address',          'Counterparty single-line address (legacy address field)'],
+            ['counterparty_address_line1',    'Counterparty street address line 1'],
+            ['counterparty_address_line2',    'Counterparty street address line 2 (suite, unit, etc.)'],
+            ['counterparty_city',             'Counterparty city'],
+            ['counterparty_state',            'Counterparty state / region'],
+            ['counterparty_postal_code',      'Counterparty ZIP / postal code'],
+            ['counterparty_city_state_zip',   'Counterparty city, state ZIP — formatted as "City, ST 00000"'],
+            ['counterparty_country',          'Counterparty country'],
+            ['counterparty_phone',            'Counterparty main phone number'],
+            ['counterparty_email',            'Counterparty main email address'],
+            ['counterparty_contact_name',     'Counterparty primary contact name (from company record)'],
+            ['counterparty_website',          'Counterparty website URL'],
+            ['counterparty_tax_id',           'Counterparty tax ID / EIN'],
+            ['counterparty_signer1_name',     'Counterparty authorized signer 1 — name'],
+            ['counterparty_signer1_title',    'Counterparty authorized signer 1 — title'],
+            ['counterparty_signer1_email',    'Counterparty authorized signer 1 — email'],
+            ['counterparty_signer2_name',     'Counterparty authorized signer 2 — name'],
+            ['counterparty_signer2_title',    'Counterparty authorized signer 2 — title'],
+            ['counterparty_signer2_email',    'Counterparty authorized signer 2 — email'],
+            ['counterparty_signer3_name',     'Counterparty authorized signer 3 — name'],
+            ['counterparty_signer3_title',    'Counterparty authorized signer 3 — title'],
+            ['counterparty_signer3_email',    'Counterparty authorized signer 3 — email'],
+            // Owner / municipality
+            ['owner_company_address',         'Owner/municipality single-line address'],
+            ['owner_address_line1',           'Owner street address line 1'],
+            ['owner_address_line2',           'Owner street address line 2'],
+            ['owner_city',                    'Owner city'],
+            ['owner_state',                   'Owner state / region'],
+            ['owner_postal_code',             'Owner ZIP / postal code'],
+            ['owner_city_state_zip',          'Owner city, state ZIP — formatted as "City, ST 00000"'],
+            ['owner_country',                 'Owner country'],
+            ['owner_phone',                   'Owner main phone number'],
+            ['owner_email',                   'Owner main email address'],
+            ['owner_contact_name',            'Owner primary contact name (from company record)'],
+            ['owner_website',                 'Owner website URL'],
+          ];
+          foreach ($companyFields as [$name, $desc]): ?>
           <tr>
             <td><code>${<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>}</code></td>
             <td class="text-muted small"><?= htmlspecialchars($desc, ENT_QUOTES, 'UTF-8') ?></td>

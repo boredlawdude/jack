@@ -124,20 +124,84 @@ class ContractsController
             exit;
         }
 
-        // Resolve owner and counterparty company names
+        // Resolve owner and counterparty company names + address fields
         if (!empty($contract['owner_company_id'])) {
-            $stmt = $this->db->prepare("SELECT name FROM companies WHERE company_id = ? LIMIT 1");
+            $stmt = $this->db->prepare("
+                SELECT name, address, address_line1, address_line2, city, state_region, postal_code,
+                       country, phone, email, contact_name, website, tax_id
+                FROM companies WHERE company_id = ? LIMIT 1");
             $stmt->execute([(int)$contract['owner_company_id']]);
-            $contract['owner_company_name'] = $stmt->fetchColumn() ?: '';
+            $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            $contract['owner_company_name']       = $row['name'] ?? '';
+            $contract['owner_company_address']    = $row['address'] ?? '';
+            $contract['owner_address_line1']      = $row['address_line1'] ?? '';
+            $contract['owner_address_line2']      = $row['address_line2'] ?? '';
+            $contract['owner_city']               = $row['city'] ?? '';
+            $contract['owner_state']              = $row['state_region'] ?? '';
+            $contract['owner_postal_code']        = $row['postal_code'] ?? '';
+            $contract['owner_country']            = $row['country'] ?? '';
+            $contract['owner_phone']              = $row['phone'] ?? '';
+            $contract['owner_email']              = $row['email'] ?? '';
+            $contract['owner_contact_name']       = $row['contact_name'] ?? '';
+            $contract['owner_website']            = $row['website'] ?? '';
+            // Formatted single-line city/state/zip
+            $csz = trim(implode(', ', array_filter([$row['city'] ?? '', $row['state_region'] ?? ''])));
+            if (!empty($row['postal_code'])) $csz .= ' ' . $row['postal_code'];
+            $contract['owner_city_state_zip']     = $csz;
         } else {
-            $contract['owner_company_name'] = '';
+            foreach (['owner_company_name','owner_company_address','owner_address_line1','owner_address_line2',
+                      'owner_city','owner_state','owner_postal_code','owner_country','owner_phone',
+                      'owner_email','owner_contact_name','owner_website','owner_city_state_zip'] as $k) {
+                $contract[$k] = '';
+            }
         }
         if (!empty($contract['counterparty_company_id'])) {
-            $stmt = $this->db->prepare("SELECT name FROM companies WHERE company_id = ? LIMIT 1");
+            $stmt = $this->db->prepare("
+                SELECT name, address, address_line1, address_line2, city, state_region, postal_code,
+                       country, phone, email, contact_name, website, tax_id,
+                       signer1_name, signer1_title, signer1_email,
+                       signer2_name, signer2_title, signer2_email,
+                       signer3_name, signer3_title, signer3_email
+                FROM companies WHERE company_id = ? LIMIT 1");
             $stmt->execute([(int)$contract['counterparty_company_id']]);
-            $contract['counterparty_company_name'] = $stmt->fetchColumn() ?: '';
+            $row = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            $contract['counterparty_company_name']    = $row['name'] ?? '';
+            $contract['counterparty_address']         = $row['address'] ?? '';
+            $contract['counterparty_address_line1']   = $row['address_line1'] ?? '';
+            $contract['counterparty_address_line2']   = $row['address_line2'] ?? '';
+            $contract['counterparty_city']            = $row['city'] ?? '';
+            $contract['counterparty_state']           = $row['state_region'] ?? '';
+            $contract['counterparty_postal_code']     = $row['postal_code'] ?? '';
+            $contract['counterparty_country']         = $row['country'] ?? '';
+            $contract['counterparty_phone']           = $row['phone'] ?? '';
+            $contract['counterparty_email']           = $row['email'] ?? '';
+            $contract['counterparty_contact_name']    = $row['contact_name'] ?? '';
+            $contract['counterparty_website']         = $row['website'] ?? '';
+            $contract['counterparty_tax_id']          = $row['tax_id'] ?? '';
+            $contract['counterparty_signer1_name']    = $row['signer1_name'] ?? '';
+            $contract['counterparty_signer1_title']   = $row['signer1_title'] ?? '';
+            $contract['counterparty_signer1_email']   = $row['signer1_email'] ?? '';
+            $contract['counterparty_signer2_name']    = $row['signer2_name'] ?? '';
+            $contract['counterparty_signer2_title']   = $row['signer2_title'] ?? '';
+            $contract['counterparty_signer2_email']   = $row['signer2_email'] ?? '';
+            $contract['counterparty_signer3_name']    = $row['signer3_name'] ?? '';
+            $contract['counterparty_signer3_title']   = $row['signer3_title'] ?? '';
+            $contract['counterparty_signer3_email']   = $row['signer3_email'] ?? '';
+            // Formatted single-line city/state/zip
+            $csz = trim(implode(', ', array_filter([$row['city'] ?? '', $row['state_region'] ?? ''])));
+            if (!empty($row['postal_code'])) $csz .= ' ' . $row['postal_code'];
+            $contract['counterparty_city_state_zip']  = $csz;
         } else {
-            $contract['counterparty_company_name'] = '';
+            foreach (['counterparty_company_name','counterparty_address','counterparty_address_line1',
+                      'counterparty_address_line2','counterparty_city','counterparty_state',
+                      'counterparty_postal_code','counterparty_country','counterparty_phone',
+                      'counterparty_email','counterparty_contact_name','counterparty_website',
+                      'counterparty_tax_id','counterparty_signer1_name','counterparty_signer1_title',
+                      'counterparty_signer1_email','counterparty_signer2_name','counterparty_signer2_title',
+                      'counterparty_signer2_email','counterparty_signer3_name','counterparty_signer3_title',
+                      'counterparty_signer3_email','counterparty_city_state_zip'] as $k) {
+                $contract[$k] = '';
+            }
         }
 
         // Merge Development Agreement fields if this is a DA contract
