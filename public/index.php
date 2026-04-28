@@ -254,6 +254,11 @@ switch ($page) {
         (new ApprovalRulesController())->stampApproval();
         break;
 
+    case 'approval_add_required':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->addApprovalOverride();
+        break;
+
     case 'approval_email_risk_manager':
         require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
         (new ApprovalRulesController())->emailRiskManager();

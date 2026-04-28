@@ -548,10 +548,18 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
                 ?>
                 <tr class="<?= ($isRequired && !$approvedDate) ? 'table-warning' : '' ?>">
                   <td class="fw-semibold"><?= h($meta['label']) ?></td>
-                  <td>
-                    <?= $isRequired
-                        ? '<span class="badge text-bg-warning text-dark">Required</span>'
-                        : '<span class="text-muted small">—</span>' ?>
+                  <td class="approval-required-cell" data-approval-type="<?= h($key) ?>">
+                    <?php if ($isRequired): ?>
+                      <span class="badge text-bg-warning text-dark">Required</span>
+                    <?php elseif (is_system_admin()): ?>
+                      <button type="button"
+                              class="btn btn-link btn-sm p-0 text-muted approval-add-required"
+                              data-contract-id="<?= (int)$contract['contract_id'] ?>"
+                              data-approval-type="<?= h($key) ?>"
+                              title="Click to require this approval">—</button>
+                    <?php else: ?>
+                      <span class="text-muted small">—</span>
+                    <?php endif; ?>
                   </td>
                   <td>
                     <?php if ($approvedDate): ?>
@@ -645,6 +653,37 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
 
           new bootstrap.Modal(document.getElementById('approvalStampModal')).show();
       }
+
+      document.querySelectorAll('.approval-add-required').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+              var contractId   = this.dataset.contractId;
+              var approvalType = this.dataset.approvalType;
+              var cell         = this.closest('.approval-required-cell');
+              var row          = this.closest('tr');
+              var self         = this;
+              self.disabled = true;
+              fetch('/index.php?page=approval_add_required', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                  body: 'contract_id=' + encodeURIComponent(contractId) +
+                        '&approval_type=' + encodeURIComponent(approvalType)
+              })
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
+                  if (data.success) {
+                      cell.innerHTML = '<span class="badge text-bg-warning text-dark">Required</span>';
+                      row.classList.add('table-warning');
+                  } else {
+                      alert('Error: ' + (data.error || 'Could not add override.'));
+                      self.disabled = false;
+                  }
+              })
+              .catch(function() {
+                  alert('Request failed. Please try again.');
+                  self.disabled = false;
+              });
+          });
+      });
       </script>
 
 

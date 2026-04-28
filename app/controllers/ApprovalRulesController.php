@@ -246,6 +246,45 @@ class ApprovalRulesController
         exit;
     }
 
+    // ── Add a manual per-contract approval override (AJAX, admin-only) ────
+    public function addApprovalOverride(): void
+    {
+        require_login();
+        if (!is_system_admin()) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'error' => 'Forbidden']);
+            exit;
+        }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+            exit;
+        }
+
+        $contractId   = (int)($_POST['contract_id'] ?? 0);
+        $approvalType = trim($_POST['approval_type'] ?? '');
+
+        if ($contractId <= 0 || !isset(self::APPROVAL_LABELS[$approvalType])) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'error' => 'Invalid parameters']);
+            exit;
+        }
+
+        $person   = current_person();
+        $personId = !empty($person['person_id']) ? (int)$person['person_id'] : null;
+
+        // INSERT IGNORE so duplicate clicks are idempotent
+        $stmt = $this->db->prepare(
+            "INSERT IGNORE INTO contract_approval_overrides (contract_id, approval_type, added_by_person_id)
+             VALUES (?, ?, ?)"
+        );
+        $stmt->execute([$contractId, $approvalType, $personId]);
+
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true]);
+        exit;
+    }
+
     // ── Static helper: evaluate which approvals are required for a contract ─
     /**
      * Returns array of required approval keys for the given contract row.
@@ -302,6 +341,16 @@ class ApprovalRulesController
 
             if ($match) {
                 $required[] = $rule['required_approval'];
+            }
+        }
+
+        // Merge in any per-contract manual overrides
+        $contractId = (int)($contract['contract_id'] ?? 0);
+        if ($contractId > 0) {
+            $ovStmt = $db->prepare("SELECT approval_type FROM contract_approval_overrides WHERE contract_id = ?");
+            $ovStmt->execute([$contractId]);
+            foreach ($ovStmt->fetchAll(PDO::FETCH_COLUMN) as $ov) {
+                $required[] = $ov;
             }
         }
 
