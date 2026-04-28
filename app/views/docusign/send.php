@@ -153,10 +153,30 @@ $defaultSubject = 'Please sign a contract for: ' . ($contractName !== '' ? $cont
 
     </div><!-- /#signers-container -->
 
-    <div class="alert alert-info mt-3 mb-4 small">
-      <strong>Tip:</strong> To position signature fields precisely in your document, add the placeholder text
-      <code>**signature_1**</code>, <code>**signature_2**</code>, etc. where you want each signer's signature tab to appear.
-      If no placeholder is found, DocuSign will place the tab at the end of the document.
+    <div class="card border-info mt-3 mb-4">
+      <div class="card-header bg-info-subtle text-info-emphasis fw-semibold small py-2">
+        DocuSign Anchor Tags — place these in your document where you want each field to appear
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-bordered mb-0 small">
+          <thead class="table-light">
+            <tr>
+              <th>Anchor text</th>
+              <th>What DocuSign inserts</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>**signature_1**</code></td><td>Signature field for signer&nbsp;1</td></tr>
+            <tr><td><code>**full_name_1**</code></td><td>Signer 1&rsquo;s full name (pre-filled, read-only)</td></tr>
+            <tr><td><code>**title_1**</code></td><td>Signer 1&rsquo;s title / position (editable — signer can confirm)</td></tr>
+            <tr><td><code>**date_signed_1**</code></td><td>Date signer 1 signs (auto-filled)</td></tr>
+            <tr class="table-light"><td colspan="2" class="text-muted">Replace <code>_1</code> with <code>_2</code>, <code>_3</code>, etc. for each additional signer in order.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer bg-transparent text-muted small py-2">
+        All anchors are optional — if a placeholder is not found in the document, DocuSign silently skips that field. If <strong>no</strong> <code>**signature_N**</code> anchor is present at all, DocuSign places the signature tab at the end of the document.
+      </div>
     </div>
 
     <div class="d-flex gap-2">
