@@ -231,6 +231,23 @@ class ContractsController
             }
         }
 
+        // ── Format currency merge fields ────────────────────────────────────────
+        $rawValue = $contract['total_contract_value'] ?? null;
+        if ($rawValue !== null && $rawValue !== '') {
+            $floatVal = (float)$rawValue;
+            // Formatted with commas and 2 decimal places: 20,000.00
+            $contract['total_contract_value']         = number_format($floatVal, 2);
+            // No-cents version for clean amounts: $20,000
+            $contract['total_contract_value_dollars'] = '$' . number_format($floatVal, 2);
+            // Written-out legal form: "Twenty Thousand Dollars and No/100"
+            $contract['total_contract_value_words']   = $this->dollarAmountToWords($floatVal);
+        } else {
+            $contract['total_contract_value']         = '';
+            $contract['total_contract_value_dollars'] = '';
+            $contract['total_contract_value_words']   = '';
+        }
+        // ───────────────────────────────────────────────────────────────────────
+
         // Get contract type info (including template paths)
         $stmt = $this->db->prepare("SELECT * FROM contract_types WHERE contract_type_id = ? LIMIT 1");
         $stmt->execute([$contract['contract_type_id'] ?? 0]);
@@ -716,6 +733,57 @@ class ContractsController
     }
 
     private function collectFormData(array $input): array { return $input; }
+
+    /**
+     * Convert a dollar amount to its legal written-out form.
+     * e.g. 20000.00  →  "Twenty Thousand Dollars and No/100"
+     *      20150.75  →  "Twenty Thousand One Hundred Fifty Dollars and 75/100"
+     */
+    private function dollarAmountToWords(float $amount): string
+    {
+        $ones  = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+                  'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen',
+                  'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+        $tens  = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        $convert = function (int $n) use ($ones, $tens, &$convert): string {
+            if ($n === 0) return '';
+            if ($n < 20) return $ones[$n];
+            if ($n < 100) return $tens[(int)($n / 10)] . ($n % 10 ? ' ' . $ones[$n % 10] : '');
+            return $ones[(int)($n / 100)] . ' Hundred' . ($n % 100 ? ' ' . $convert($n % 100) : '');
+        };
+
+        $intPart   = (int)abs($amount);
+        $centsPart = (int)round((abs($amount) - $intPart) * 100);
+
+        if ($intPart === 0) {
+            $words = 'Zero';
+        } else {
+            $parts = [];
+            if ($intPart >= 1_000_000_000) {
+                $b = (int)($intPart / 1_000_000_000);
+                $parts[] = $convert($b) . ' Billion';
+                $intPart %= 1_000_000_000;
+            }
+            if ($intPart >= 1_000_000) {
+                $m = (int)($intPart / 1_000_000);
+                $parts[] = $convert($m) . ' Million';
+                $intPart %= 1_000_000;
+            }
+            if ($intPart >= 1_000) {
+                $k = (int)($intPart / 1_000);
+                $parts[] = $convert($k) . ' Thousand';
+                $intPart %= 1_000;
+            }
+            if ($intPart > 0) {
+                $parts[] = $convert($intPart);
+            }
+            $words = implode(' ', $parts);
+        }
+
+        $centsStr = $centsPart === 0 ? 'No/100' : $centsPart . '/100';
+        return $words . ' Dollars and ' . $centsStr;
+    }
     private function validate(array $data): array { return []; }
 
     /**
