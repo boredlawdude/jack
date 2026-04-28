@@ -65,6 +65,7 @@ if (!function_exists('h')) {
             Delete Selected
         </button>
         <a class="btn btn-primary btn-sm" href="/index.php?page=companies_create">New Company</a>
+        <a class="btn btn-outline-secondary btn-sm" href="/index.php?page=companies_vendor_pdf_import">Import from PDF</a>
     </div>
 </div>
 

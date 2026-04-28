@@ -276,6 +276,14 @@ case 'companies_create':
     $companiesController->create();
     break;
 
+case 'companies_vendor_pdf_import':
+    $companiesController->vendorPdfImport();
+    break;
+
+case 'companies_vendor_pdf_import_process':
+    $companiesController->vendorPdfImportProcess();
+    break;
+
 case 'companies_store':
     $companiesController->store();
     break;
