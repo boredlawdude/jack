@@ -384,13 +384,7 @@ foreach ($documents as $doc) {
     if ($doc['exhibit_label'] !== null && $doc['exhibit_label'] !== '') {
         $docLabel = $doc['exhibit_label'];
     } else {
-        $docLabel = $doc['doc_type'] ?? null;
-        if (!empty($doc['description'])) {
-            $docLabel .= ' - ' . $doc['description'];
-        }
-        if ($docLabel === '' || $docLabel === null) {
-            $docLabel = null;
-        }
+        $docLabel = null;
     }
 
     try {
