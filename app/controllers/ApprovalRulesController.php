@@ -249,6 +249,9 @@ class ApprovalRulesController
     // ── Add a manual per-contract approval override (AJAX, admin-only) ────
     public function addApprovalOverride(): void
     {
+        ob_clean(); // discard any HTML buffered before this AJAX endpoint was reached
+        header('Content-Type: application/json; charset=utf-8');
+
         require_login();
         if (!is_system_admin()) {
             http_response_code(403);
@@ -280,7 +283,6 @@ class ApprovalRulesController
         );
         $stmt->execute([$contractId, $approvalType, $personId]);
 
-        header('Content-Type: application/json');
         echo json_encode(['success' => true]);
         exit;
     }
