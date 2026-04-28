@@ -83,6 +83,10 @@ $defaultSubject = 'Please sign a contract for: ' . ($contractName !== '' ? $cont
                        placeholder="Full Name" maxlength="100" required>
               </div>
               <div class="col">
+                <input type="text" class="form-control form-control-sm" name="signer_company[]"
+                       placeholder="Company Name" maxlength="200">
+              </div>
+              <div class="col">
                 <input type="email" class="form-control form-control-sm" name="signer_email[]"
                        placeholder="email@example.com" maxlength="200" required>
               </div>
@@ -96,10 +100,11 @@ $defaultSubject = 'Please sign a contract for: ' . ($contractName !== '' ? $cont
 
       <!-- Vendor / Counterparty signers — sign first (3 slots) -->
       <?php
+        $counterpartyCompany = trim((string)($doc['counterparty_company_name'] ?? ''));
         $vendorRows = [
-            ['name' => $counterpartyName, 'email' => $counterpartyEmail],
-            ['name' => '', 'email' => ''],
-            ['name' => '', 'email' => ''],
+            ['name' => $counterpartyName, 'email' => $counterpartyEmail, 'company' => $counterpartyCompany],
+            ['name' => '', 'email' => '', 'company' => ''],
+            ['name' => '', 'email' => '', 'company' => ''],
         ];
       ?>
       <?php foreach ($vendorRows as $i => $v): ?>
@@ -112,6 +117,10 @@ $defaultSubject = 'Please sign a contract for: ' . ($contractName !== '' ? $cont
                      value="<?= h($v['name']) ?>" placeholder="Full Name" maxlength="100"
                      <?= $i === 0 ? 'required' : '' ?>>
               <div class="form-text text-warning-emphasis small mt-0">Vendor / Counterparty</div>
+            </div>
+            <div class="col">
+              <input type="text" class="form-control form-control-sm" name="signer_company[]"
+                     value="<?= h($v['company']) ?>" placeholder="Company Name" maxlength="200">
             </div>
             <div class="col">
               <input type="email" class="form-control form-control-sm" name="signer_email[]"
@@ -128,6 +137,9 @@ $defaultSubject = 'Please sign a contract for: ' . ($contractName !== '' ? $cont
 
       <!-- Town signers (pre-populated from roles) -->
       <?php if (!empty($townSigners)): ?>
+        <?php
+          $ownerCompany = trim((string)($doc['owner_company_name'] ?? ''));
+        ?>
         <?php foreach ($townSigners as $i => $signer): ?>
         <div class="card mb-2 signer-row border-primary-subtle">
           <div class="card-body py-2 px-3">
@@ -137,6 +149,10 @@ $defaultSubject = 'Please sign a contract for: ' . ($contractName !== '' ? $cont
                 <input type="text" class="form-control form-control-sm" name="signer_name[]"
                        value="<?= h($signer['name']) ?>" placeholder="Full Name" maxlength="100" required>
                 <div class="form-text text-primary small mt-0"><?= h($signer['role']) ?></div>
+              </div>
+              <div class="col">
+                <input type="text" class="form-control form-control-sm" name="signer_company[]"
+                       value="<?= h($ownerCompany) ?>" placeholder="Company Name" maxlength="200">
               </div>
               <div class="col">
                 <input type="email" class="form-control form-control-sm" name="signer_email[]"
@@ -168,6 +184,7 @@ $defaultSubject = 'Please sign a contract for: ' . ($contractName !== '' ? $cont
           <tbody>
             <tr><td><code>**signature_1**</code></td><td>Signature field for signer&nbsp;1</td></tr>
             <tr><td><code>**full_name_1**</code></td><td>Signer 1&rsquo;s full name (pre-filled, read-only)</td></tr>
+            <tr><td><code>**company_name_1**</code></td><td>Signer 1&rsquo;s company name (pre-filled from the Company Name field above)</td></tr>
             <tr><td><code>**title_1**</code></td><td>Signer 1&rsquo;s title / position (editable — signer can confirm)</td></tr>
             <tr><td><code>**date_signed_1**</code></td><td>Date signer 1 signs (auto-filled)</td></tr>
             <tr class="table-light"><td colspan="2" class="text-muted">Replace <code>_1</code> with <code>_2</code>, <code>_3</code>, etc. for each additional signer in order.</td></tr>
