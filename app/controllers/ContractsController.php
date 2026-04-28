@@ -647,8 +647,7 @@ class ContractsController
     }
 
     private function getPeopleByCompany(int $companyId): array {
-        $stmt = $this->db->prepare("SELECT person_id, first_name, last_name FROM people WHERE company_id = ? AND is_active = 1 ORDER BY last_name, first_name");
-        $stmt->execute([$companyId]);
+        $stmt = $this->db->query("SELECT person_id, first_name, last_name, full_name FROM people WHERE is_town_employee = 1 AND is_active = 1 ORDER BY last_name, first_name");
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
