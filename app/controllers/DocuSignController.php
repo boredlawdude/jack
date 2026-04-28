@@ -421,21 +421,32 @@ class DocuSignController
                 exit;
             }
             $routingOrder = (string)($i + 1);
+            // Helper to build an anchor tab definition
+            $anchorTab = fn(string $anchor) => [
+                'anchorString'             => $anchor,
+                'anchorIgnoreIfNotPresent' => 'true',
+                'anchorUnits'              => 'pixels',
+                'anchorXOffset'            => '0',
+                'anchorYOffset'            => '0',
+            ];
+
             $signers[] = [
                 'email'        => $email,
                 'name'         => $name,
                 'recipientId'  => $routingOrder,
                 'routingOrder' => $routingOrder,
                 'tabs'         => [
-                    'signHereTabs' => [[
-                        // Anchor-based placement: add **signature_1** etc. in the document
-                        // to position the signature tab. Falls back to end-of-document if absent.
-                        'anchorString'              => '**signature_' . $routingOrder . '**',
-                        'anchorIgnoreIfNotPresent'  => 'true',
-                        'anchorUnits'               => 'pixels',
-                        'anchorXOffset'             => '0',
-                        'anchorYOffset'             => '0',
-                    ]],
+                    // Place with **signature_1**, **signature_2**, etc.
+                    'signHereTabs'    => [$anchorTab('**signature_' . $routingOrder . '**')],
+                    // Place with **full_name_1**, **full_name_2**, etc.
+                    // Pre-filled with the signer's name (read-only).
+                    'fullNameTabs'    => [$anchorTab('**full_name_' . $routingOrder . '**')],
+                    // Place with **title_1**, **title_2**, etc.
+                    // Editable title/position field — signer can confirm or fill in.
+                    'titleTabs'       => [$anchorTab('**title_' . $routingOrder . '**')],
+                    // Place with **date_signed_1**, **date_signed_2**, etc.
+                    // Auto-filled with the date the signer signs.
+                    'dateSignedTabs'  => [$anchorTab('**date_signed_' . $routingOrder . '**')],
                 ],
             ];
         }
