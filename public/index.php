@@ -259,6 +259,11 @@ switch ($page) {
         (new ApprovalRulesController())->addApprovalOverride();
         break;
 
+    case 'approval_override_log':
+        require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
+        (new ApprovalRulesController())->logSignatureOverride();
+        break;
+
     case 'approval_email_risk_manager':
         require_once APP_ROOT . '/app/controllers/ApprovalRulesController.php';
         (new ApprovalRulesController())->emailRiskManager();

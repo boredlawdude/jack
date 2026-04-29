@@ -511,8 +511,12 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
         $userApprovalRoles = $userApprovalRoles ?? [];
         $anyRequired = !empty($requiredApprovals);
         $pendingCount = 0;
+        $pendingApprovalLabels = [];
         foreach ($requiredApprovals as $rk) {
-            if (empty($contract[$approvalMeta[$rk]['col']])) $pendingCount++;
+            if (empty($contract[$approvalMeta[$rk]['col']])) {
+                $pendingCount++;
+                $pendingApprovalLabels[] = $approvalMeta[$rk]['label'];
+            }
         }
         $approvalRoleLabels = [
             'manager'      => 'Town Manager (TOWN_MANAGER)',
@@ -686,6 +690,52 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
       });
       </script>
 
+      <!-- Signature Override Warning Modal -->
+      <?php if ($pendingCount > 0): ?>
+      <div class="modal fade" id="signatureOverrideModal" tabindex="-1" aria-labelledby="signatureOverrideModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header bg-warning">
+              <h5 class="modal-title" id="signatureOverrideModalLabel">&#9888; Warning: Required Approvals Not Complete</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <p class="mb-2">The following required approvals have <strong>not</strong> been recorded:</p>
+              <ul>
+                <?php foreach ($pendingApprovalLabels as $pl): ?>
+                  <li><?= h($pl) ?></li>
+                <?php endforeach; ?>
+              </ul>
+              <p class="mb-0">Do you want to override and send for signature anyway? This action will be recorded in the contract log.</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-warning" id="signatureOverrideConfirmBtn">Override &amp; Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+      var _sigOverrideUrl = '';
+      function openSignatureOverrideModal(url) {
+          _sigOverrideUrl = url;
+          new bootstrap.Modal(document.getElementById('signatureOverrideModal')).show();
+      }
+      document.getElementById('signatureOverrideConfirmBtn').addEventListener('click', function() {
+          var btn = this;
+          btn.disabled = true;
+          btn.textContent = 'Sending…';
+          fetch('/index.php?page=approval_override_log', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+              body: 'contract_id=<?= (int)$contract['contract_id'] ?>'
+          })
+          .then(function() { window.location.href = _sigOverrideUrl; })
+          .catch(function() { window.location.href = _sigOverrideUrl; });
+      });
+      </script>
+      <?php endif; ?>
+
 
 
     </div>
@@ -801,10 +851,18 @@ $isDevAgreement = isset($devAgreement) && is_array($devAgreement);
                           <span class="badge text-bg-<?= h($dsBadge) ?> me-1"><?= h(ucfirst($dsStatus)) ?></span>
                         <?php endif; ?>
                         <?php if ($canSend && $dsDocId > 0): ?>
-                          <a href="/index.php?page=docusign_auth&doc_id=<?= $dsDocId ?>&contract_id=<?= $dsCtrId ?>"
-                             class="btn btn-outline-secondary btn-sm">
-                            <?= $dsStatus !== null ? 'Re-send' : 'Send for Signature' ?>
-                          </a>
+                          <?php
+                            $dsUrl   = '/index.php?page=docusign_auth&doc_id=' . $dsDocId . '&contract_id=' . $dsCtrId;
+                            $dsLabel = $dsStatus !== null ? 'Re-send' : 'Send for Signature';
+                          ?>
+                          <?php if ($pendingCount > 0): ?>
+                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    onclick="openSignatureOverrideModal('<?= h(addslashes($dsUrl)) ?>')">
+                              <?= h($dsLabel) ?>
+                            </button>
+                          <?php else: ?>
+                            <a href="<?= h($dsUrl) ?>" class="btn btn-outline-secondary btn-sm"><?= h($dsLabel) ?></a>
+                          <?php endif; ?>
                         <?php endif; ?>
                         <?php if ($canVoid && $dsDocId > 0): ?>
                           <button type="button" class="btn btn-outline-warning btn-sm ms-1"

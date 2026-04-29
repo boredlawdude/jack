@@ -246,6 +246,47 @@ class ApprovalRulesController
         exit;
     }
 
+    // ── Log a signature override: user sent for signature despite pending approvals ──
+    public function logSignatureOverride(): void
+    {
+        ob_clean();
+        header('Content-Type: application/json; charset=utf-8');
+
+        require_login();
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false]);
+            exit;
+        }
+
+        $contractId = (int)($_POST['contract_id'] ?? 0);
+        if ($contractId <= 0) {
+            http_response_code(422);
+            echo json_encode(['success' => false]);
+            exit;
+        }
+
+        $person     = current_person();
+        $personId   = !empty($person['person_id']) ? (int)$person['person_id'] : null;
+        $personName = trim(($person['first_name'] ?? '') . ' ' . ($person['last_name'] ?? ''));
+        if (trim($personName) === '') {
+            $personName = $person['display_name'] ?? $person['email'] ?? 'Unknown';
+        }
+
+        $this->db->prepare(
+            "INSERT INTO contract_status_history
+                (contract_id, event_type, old_status, new_status, changed_by, changed_at, notes)
+             VALUES (?, 'signature_override', NULL, NULL, ?, NOW(), ?)"
+        )->execute([
+            $contractId,
+            $personId,
+            "Routed for signature by $personName — override: not all required approvals were recorded at time of sending",
+        ]);
+
+        echo json_encode(['success' => true]);
+        exit;
+    }
+
     // ── Add a manual per-contract approval override (AJAX, admin-only) ────
     public function addApprovalOverride(): void
     {
