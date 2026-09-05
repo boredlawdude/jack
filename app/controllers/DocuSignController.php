@@ -393,8 +393,12 @@ class DocuSignController
         curl_close($ch);
 
         if ($httpCode !== 200) {
+            $errData = json_decode((string)$resp, true);
+            $errMsg  = is_array($errData)
+                ? (string)($errData['error_description'] ?? $errData['error'] ?? $resp)
+                : (string)$resp;
             http_response_code(502);
-            exit('DocuSign token exchange failed (HTTP ' . $httpCode . ').');
+            exit('DocuSign token exchange failed (HTTP ' . $httpCode . '): ' . htmlspecialchars($errMsg, ENT_QUOTES, 'UTF-8'));
         }
 
         $tokenData = json_decode((string)$resp, true);
